@@ -1,0 +1,91 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build artifacts
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Sensitive configuration files
+*.pem
+*.key
+*.crt
+*.pfx
+*.env.local
+*.secret
+secrets/
+config/*.local.js
+
+# Database data
+data/
+db/
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.mdb
+*.sql
+*.bak
+
+# Docker volumes and artifacts
+docker-compose.override.yml
+docker-compose.*.yml
+docker-data/
+volumes/
+*.pid
+
+# IDE/editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*.code-workspace
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+
+# Ollama models
+ollama/models/
+ollama/*.bin
+ollama/*.model
+
+# Uploaded documents
+uploads/
+uploaded_docs/
+public/uploads/
+public/documents/
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+*.tgz
+*.gz
+*.zip
+*.tar
+*.rar
+
+# React specific
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+# Local test coverage
+coverage/
+.nyc_output/

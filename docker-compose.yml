@@ -1,0 +1,83 @@
+
+
+services:
+
+  ollama:
+    image: ollama/ollama:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ports:
+      - "11434:11434"
+    volumes:
+      - E:/dev/gov-proposal-ai/data/ollama:/root/.ollama
+    networks:
+      - govai_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: govai
+      DB_USER: govaiuser
+      DB_PASSWORD: ${DB_PASSWORD}
+      OLLAMA_API_URL: http://ollama:11434
+    ports:
+      - "3001:3000"
+    depends_on:
+      - database
+      - ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - govai_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      REACT_APP_API_URL: http://localhost:3001
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - govai_network
+
+  database:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: govai
+      POSTGRES_USER: govaiuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - E:/dev/gov-proposal-ai/data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govaiuser -d govai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - govai_network
+networks:
+  govai_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_data:
