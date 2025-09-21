@@ -7,6 +7,9 @@ const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const documentsRouter = require('./routes/documents');
 const analysisRouter = require('./routes/analysis');
+const pastPerformanceRouter = require('./routes/pastPerformance');
+const aiWritingRouter = require('./routes/aiWriting');
+const complianceRouter = require('./routes/compliance');
 
 /**
  * Basic Express.js app with WebSocket, PostgreSQL, and Ollama LLM integration.
@@ -30,6 +33,9 @@ app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use('/api/documents', documentsRouter);
 app.use('/api/analysis', analysisRouter);
+app.use('/api/past-performance', pastPerformanceRouter);
+app.use('/api/ai-writing', aiWritingRouter);
+app.use('/api/compliance', complianceRouter);
 
 // --- Health Check Endpoint ---
 app.get('/health', async (req, res) => {

@@ -1,0 +1,272 @@
+For this chat - Act as a business analyst with expertise in AI software development. Analyze my feedback through a series of questions to build out the requirements for a new application. Once we have the first5 top epics nailed down, build out a claude project description and then an md file to describe the project for future chatsEditI'll help you analyze your feedback and build comprehensive requirements for your new AI application. Let me start by understanding your vision and context.
+Initial Discovery Questions
+1. Vision & Scope
+
+What's the core problem you're trying to solve with this AI application?
+Who is your target user base (internal teams, external customers, specific industry)?
+What's the primary value proposition you want to deliver?
+
+2. Current State
+
+Do you have any existing systems or processes this would replace or integrate with?
+What tools are you currently using that aren't meeting your needs?
+Are there any specific pain points or inefficiencies you're experiencing?
+
+3. AI Functionality
+
+What type of AI capabilities are you envisioning? (e.g., natural language processing, computer vision, predictive analytics, generative AI)
+Do you have any specific AI models or technologies in mind?
+What level of AI sophistication are you targeting?
+
+4. Business Context
+
+What's your timeline for development and deployment?
+Do you have budget constraints or team size limitations I should consider?
+Are there any regulatory or compliance requirements that would impact the design?
+
+Please share your initial thoughts on these areas, and I'll dive deeper into the specifics to help us identify those first 5 key epics for your application.RetryJZI would like to build a local llm supported application for pws, sow and rfp/rfi responses to federal and state government solicitaitonsEditExcellent! A local LLM application for government proposal responses is a strategic opportunity. Let me dive deeper to understand your specific requirements.
+Business Context & Scope
+1. Organization & Scale
+
+Are you a government contractor, consulting firm, or vendor looking to respond to solicitations?
+What's your typical proposal volume? (responses per month/quarter)
+What size contracts are you typically pursuing? ($100K, $1M, $10M+)
+
+2. Current Proposal Process
+
+How do you currently handle PWS (Performance Work Statement), SOW (Statement of Work), and RFP/RFI responses?
+What's your typical response timeline? (days/weeks from solicitation to submission)
+How many people are typically involved in creating a response?
+What are your biggest bottlenecks or pain points in the current process?
+
+Technical Requirements
+3. Local LLM Preferences
+
+Do you have preferences for specific local LLM models? (e.g., Llama, Mistral, CodeLlama)
+What's your hardware setup? (GPU capabilities, RAM, storage)
+Any security or data residency requirements driving the local deployment decision?
+
+4. Document Management
+
+Do you have a library of past successful proposals you'd want to leverage?
+What document formats do you typically work with? (Word, PDF, specific government formats)
+Do you need integration with existing document management systems?
+
+Functional Capabilities
+5. Core Features
+
+Should the system analyze incoming solicitations and extract key requirements?
+Do you want automated first-draft generation or more of an intelligent assistant approach?
+Should it help with compliance checking against solicitation requirements?
+Do you need features for team collaboration during proposal development?
+
+What's your current biggest challenge in the proposal response process that you'd want this application to solve first?RetryJZI am part of a larger organization where we do a lot of work for the government. Most of our contracts are $1m plus per annum. We do 50+ proposals a year and at least double that in RFI's.; We have full blown proposal teams that are organized by a proposal manager who leads the timeline and color teams. We see everything from a couple of days to a couple of months, it just depends on how well capture is doing their job. On a small response we might see 3-4 people and on larger ones we may see 10-12. The initial solutioning before or during blue is usually the biggest timesink, that is seconded by the first pink writing phase. I do not have a preference only that it meets the reqs and will run and maybe be able to be trained locally. I will send a list of the hardware and recorded top/s and other metrics in the next response. I would prefer all data, responses, documentation, etc. be held locally on my machine with no chance of it getting out. I have access to many of our past responses and past perfomance library to help train the model or at least be available for RAG. We mostly have word and pdf. No need to for dms linkage at this time, but it would be nice to architect this in a way that if the company approves, i am able to link into our repository (sharepoint right now). I will want the system to analyze and extract, yes. I will also want compliance checking once responses are begun being written. I want partial automation of writing. I want hitl by section to be able to truth the responses to reality initially.EditPerfect! This gives me a clear picture of your enterprise-level proposal operation. You're looking at a sophisticated AI assistant that can significantly accelerate your blue team solutioning and pink team writing phases while maintaining strict data security.
+Deep Dive Questions
+Proposal Process & Workflow
+6. Blue Team Solutioning (Your #1 Pain Point)
+
+What specific activities take the most time during blue team? (technical approach development, past performance matching, team structure planning, pricing strategy?)
+Do you have standardized solution frameworks or methodologies you typically follow?
+How do you currently match past performance examples to new solicitation requirements?
+What information sources do blue teams typically reference? (capability statements, past proposals, technical libraries, personnel databases?)
+
+7. Pink Team Writing Process
+
+What's your typical section breakdown? (technical approach, management approach, past performance, personnel, etc.)
+Do you have writing templates or style guides the AI should follow?
+How do compliance matrices/requirements traceability currently work in your process?
+What level of technical detail is typically required in first drafts?
+
+Document Architecture & RAG
+8. Historical Data Assets
+
+How many past proposals do you have access to? What date range?
+Are they organized by customer, contract type, technical domain, or other taxonomy?
+Do you have win/loss data to help the AI learn from successful approaches?
+What's in your past performance library? (project summaries, metrics, lessons learned?)
+
+9. Integration & Future State
+
+For potential SharePoint integration - what's stored there? (templates, libraries, active proposals?)
+Do you use any proposal management tools currently? (Shipley, others?)
+Any specific government systems you need to consider? (SAM.gov, specific agency portals?)
+
+Human-in-the-Loop Workflow
+10. Quality Control & Review
+
+Who would be the primary users for HITL review by section?
+What's your typical review cycle? (draft → review → revise iterations?)
+Do different team members specialize in different sections?
+
+Please share those hardware specs when ready - that'll help me understand the local LLM constraints we're working within.RetryJZFor blue team solutioning, all I am looking for is a recommended framework based on the contents of the PWS/sow/rfp/rfi. If one doe snot exist, say so and lead the author(s) through a series of questions into building one. Not really, we are typically a modernization shop, so a lot of our work follows govt standards or req's. We try to insert industry best practices where we can. For PP, we use our internal knowledge to pair our past work based on the solicitation reqs - i.e. last 3 years, specific platform or tech, etc.. We have templates and style guides, but for now, we will use the AI for section by section writing, not wholesale drafts. So we can merge and restyle as needed. Section by section compliance and overall req checklists. 75% is the goal for first draft (pink), with any draft graphics and tables ideated and sketched out.I can get my hands on 40 or so, but would rather focus on quality ones, so maybe 10-12 really good ones. They do target specific customers obviously. No specific taxonomy outside of that we are already in a niche. I will only feed ones we consider wins. PP are usually 1-4 page summaries with metrics, tech stacks, lessons learned, in some cases a lot more.No need to think about SP right now, just keep the system architected so that we can integrate a dms later. No proposal mgt tools right now outside of SP. We use SAM, Govwin, etc. to track new solicitations.I and other writers are the primary users. Some day I would like this to be server based so multiple users can log into the system and use the same features i will. Yes - draft, review/comment, revisions, next phase. Yes, we typically have those who specialize in Mgt, tech, testing, security, etc. but a lot of times, we have to cover other sections not in our "specialty".Hardware specs next, pause questions until you get those.EditGot it! This is excellent clarity. I can see you want:
+Core Functionality:
+
+Framework recommendation engine based on solicitation analysis
+Guided framework creation when none exists
+Past performance matching based on solicitation requirements
+Section-by-section writing assistance (75% draft quality target)
+Compliance checking at section and overall levels
+Graphics/tables ideation and sketching
+HITL review workflow by section
+
+Data Strategy:
+
+10-12 high-quality winning proposals for training
+Past performance library (1-4 page summaries)
+Customer-specific targeting capability
+Future DMS integration architecture
+
+User Model:
+
+Primary: You and other writers
+Future: Multi-user server deployment
+Specialist coverage across management, technical, testing, security sections
+
+I'm pausing further questions until you provide the hardware specs - that'll be crucial for determining the optimal local LLM architecture and performance expectations.
+Ready for your hardware specifications!RetryJZOk, i have added a file to the project, please read itEditPerfect! I've reviewed your hardware specs - that's an impressive AI workstation. Based on your RTX 5060 Ti with 16GB VRAM, you're in the sweet spot for 14B parameter models (39.9 tok/s with Qwen 2.5 14B), which should be excellent for this application.
+Final Requirements Questions
+11. Performance & User Experience
+
+Given your 14B model performance (40 tok/s), are you comfortable with ~1-2 minute response times for complex section generation?
+Do you need real-time collaboration features, or can users work sequentially on sections?
+Any preference for web-based UI vs desktop application?
+
+12. Data Security & Compliance
+
+Are there specific government security standards you need to meet (NIST, FedRAMP, etc.)?
+Do you need audit trails for document changes and AI interactions?
+Any requirements for data encryption at rest/in transit?
+
+13. Framework & Knowledge Management
+
+Should the system learn and improve from your feedback over time?
+Do you want version control for your proposal frameworks and templates?
+How should the system handle conflicting requirements between solicitations?
+
+14. Output & Integration
+
+What format should AI-generated sections be delivered in? (Word-compatible, markdown, plain text?)
+Do you need citation/source tracking for AI-generated content?
+Should graphics/tables be generated as code (matplotlib, etc.) or conceptual descriptions?
+
+15. Deployment & Scaling
+
+Timeline for initial deployment vs full feature rollout?
+When would you want to move from single-user to multi-user server deployment?
+Any budget considerations for additional hardware if we need to scale up model size?
+
+Once we cover these, I'll synthesize everything into your 5 core epics and project documentation.RetryJZI would prefer near conversational response times. I ask it to analyze a section and write content, it should start writing near real time and be done with 3-4 paragraphs in 30 secondsRight now with my specs it will be single user. I do want this to be web based and containerized to make moving to new machinery easy in the future.No security standards.Yes it should learn and improve. Yes version control where it makes sense. The system should call out conflicts in a solicitation and keep them in a table or something for me to point out to the govt. Not sure what conflicts between solicitations would do.As plain of text as possible with no em dashes or other easy to recognize AI writing markings. Just conceptual descriptions or links to similar diagrams with a description of how to accomplish the graphic.Initial deployment should be in the next week. Multi user won't be for a while - months to a year. If everything is working amazingly and all that is bothering me is quality/depth of the response and all that is needed to take it to the stars is new hardware, I will find the budget from myself or my company to get it.In addition to the epics and documantation - which should all be done in versioned markdown files, I want a project description including a prompt for who you should be as an AI in our chat sessions. You will help me as a collaborator, coder, architect, BA, SA, and full blown partner in buidling this out. I would like to use claude code through vs code to build out the  software. Ask any other tech questions you need before you write the epics. One of the epics should be NFR to account for buidling out the dev and prod env locallyEditFinal Technical Questions
+16. Technology Stack & Architecture
+
+Any preferences for backend framework? (FastAPI/Python, Node.js, etc.)
+Frontend preference? (React, Vue, vanilla JS?)
+Database for storing proposals, frameworks, and learning data? (SQLite, PostgreSQL, vector DB for embeddings?)
+Containerization preference? (Docker Compose, Kubernetes?)
+
+17. Local LLM Integration
+
+Should we stick with Ollama for model serving, or are you open to alternatives?
+Do you want the ability to switch between models (7B for speed, 14B for quality) based on task?
+Any preference for specific model families? (Qwen 2.5 seems to work well for you)
+
+18. Real-time Response Architecture
+
+For near real-time streaming responses, should we implement WebSocket connections?
+Do you want to see the AI "thinking" (streaming tokens as they generate)?
+Should the system pre-process common sections to reduce response time?
+
+19. Development Environment
+
+Since you want to use Claude Code through VS Code, any preference for project structure/monorepo vs microservices?
+Do you want hot-reload development environment with live model swapping?
+Any CI/CD preferences for your local deployment pipeline?
+
+20. Data Management & Learning
+
+How should the system store and version your feedback/corrections for continuous learning?
+Do you want automated retraining capabilities, or manual model fine-tuning triggers?
+Should past proposals be chunked and embedded for RAG, or stored as complete documents?
+
+Once I have these final technical details, I'll create:
+
+5 Core Epics (versioned markdown)
+Project Documentation (comprehensive technical specs)
+Claude Project Description (including your AI collaborator prompt)
+Architecture Overview (for Claude Code development)
+
+Ready to build your government proposal AI system!RetryJZNode, React, whatever makes sense for db, docker or kub is fineOpen to alternatives. Yes switching is good depending on the task. No.Yes. Yes for now, but the option to not see it think. No, but I like this thought, let's keep this on the list as a later stretch goal or a feature that once a solicitation is analyzed and a template response is provided, a button appears to "draft all section responses".No preference. Yes. 100% automated ci/cd with full unit and other testing implemented with report outs for each consecutive build.I wil need your expert feedback on how/where to store feedback/corrections. Manual model fine tune initially. Chunked I think, but what do you recommend?EditTechnical Recommendations
+Database Strategy:
+
+PostgreSQL with pgvector extension for hybrid approach:
+
+Structured data (proposals, sections, compliance matrices) in relational tables
+Vector embeddings for RAG similarity search
+Full-text search capabilities
+JSONB for flexible metadata storage
+
+
+
+Data Storage & Learning:
+
+Chunked + Hierarchical: Chunk documents by section AND maintain document structure
+Feedback Loop: Store corrections as structured data (original → corrected → reason) for future fine-tuning datasets
+RAG Strategy: Semantic search on chunks + metadata filtering (customer, tech stack, date range)
+
+Architecture:
+
+Backend: Node.js with Express/Fastify
+Real-time: Socket.io for streaming responses
+Model Serving: Keep Ollama (battle-tested) with REST API wrapper
+Container: Docker Compose (simpler for single-user, easier migration path to K8s)
+
+Now creating your project artifacts...Government Proposal AI Assistant - Core Epics v1.0Document # Government Proposal AI Assistant - Core Epics v1.0
+
+## Epic 1: Solicitation Analysis & Framework Engine
+**Priority:** P0 - Foundation
+**Estimated Effort:** 3-4 weeks
+
+### User Story
+As a proposal writer, I want to upload a PWS/SOW/RFP/RFI document Claude Project Description - Government Proposal AI AssistantDocument # Claude Project Description: Government Proposal AI Assistant
+
+## Project Overview
+
+You are Claude, an AI collaborator specializing in building a sophisticated, locally-deployed AI assistant for government proposal development. This system will acceGovernment Proposal AI Assistant - Technical Specification v1.0Document # Government Proposal AI Assistant - Technical Specification v1.0
+
+## Executive Summary
+
+A locally-deployed, AI-powered assistant for government proposal development that accelerates blue team solutioning and pink team writing while maintaining stricPerfect! I've created your comprehensive project documentation. Here's what you now have:
+Delivered Artifacts
+1. Core Epics (Markdown) - Your 5 prioritized development phases:
+
+Epic 1: Solicitation Analysis & Framework Engine
+Epic 2: Past Performance Matching & RAG System
+Epic 3: Section-by-Section AI Writing Assistant
+Epic 4: Compliance & Requirements Management
+Epic 5: Non-Functional Requirements & Infrastructure
+
+2. Technical Specification - Complete system architecture including:
+
+Component diagrams and data models
+API specifications and performance targets
+Security, deployment, and scaling strategies
+Complete Docker containerization setup
+
+3. Claude Project Description - Your AI collaborator prompt defining my role as:
+
+Solution Architect & Business Analyst
+Full-stack Developer & DevOps Engineer
+AI/ML Engineer & Technical Writer
+Complete understanding of your government proposal domain
+
+Key Technical Decisions Made
+Based on your requirements, I've recommended:
+
+PostgreSQL + pgvector for hybrid relational/vector storage
+Node.js + React with WebSocket streaming for real-time responses
+Docker Compose for local containerization (easy migration to K8s later)
+Ollama with model switching (7B/14B based on task requirements)
+Comprehensive CI/CD with automated testing and deployment
+
+Next Steps
+You're ready to start development with Claude Code in VS Code! The architecture supports your 30-second response time target with your current hardware while building toward future multi-user scaling.
+All documentation is versioned and ready for our collaborative development sessions. Ready to start building your government proposal AI assistant?
