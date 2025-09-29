@@ -18,6 +18,7 @@ EXPOSE 3000
 
 # Set environment variable for development
 ENV NODE_ENV=development
+ENV PORT=3000
 
 # Start the React development server with hot reload and file watching
 CMD ["npm", "start"]

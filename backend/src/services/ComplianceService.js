@@ -1,17 +1,26 @@
 /**
  * Compliance Management Service
  * Epic 4: Regulatory compliance, requirements tracking, and risk assessment
+ * Enhanced with cross-reference detection and semantic matching
  */
 
 const axios = require('axios');
 const logger = require('../utils/logger');
+const CrossReferenceService = require('./CrossReferenceService');
+const ComplianceFramework = require('../models/ComplianceFramework');
 
 class ComplianceService {
   constructor() {
     this.ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434';
     this.defaultModel = process.env.OLLAMA_MODEL || 'qwen2.5:14b';
 
-    // Common compliance frameworks
+    // Initialize cross-reference service
+    this.crossReferenceService = new CrossReferenceService();
+
+    // Initialize database-driven compliance framework model
+    this.complianceFrameworkModel = new ComplianceFramework();
+
+    // Legacy frameworks (kept for backward compatibility)
     this.frameworks = {
       'FAR': 'Federal Acquisition Regulation',
       'NIST': 'National Institute of Standards and Technology',
@@ -23,6 +32,68 @@ class ComplianceService {
       'SECTION508': 'Section 508 Accessibility',
       'FIPS140': 'Federal Information Processing Standards'
     };
+
+    // Initialize database on startup
+    this.initializeDatabase();
+  }
+
+  /**
+   * Initialize database tables and seed data
+   */
+  async initializeDatabase() {
+    try {
+      await this.complianceFrameworkModel.initializeTables();
+      logger.info('Compliance framework database initialized');
+    } catch (error) {
+      logger.error('Failed to initialize compliance framework database:', error);
+    }
+  }
+
+  /**
+   * Get compliance frameworks organized by category (database-driven)
+   */
+  async getFrameworksByCategory() {
+    try {
+      return await this.complianceFrameworkModel.getFrameworksByCategory();
+    } catch (error) {
+      logger.warn('Failed to load frameworks from database, falling back to legacy:', error);
+      // Fallback to legacy frameworks
+      return {
+        acquisition: {
+          name: 'acquisition',
+          displayName: 'Acquisition & Procurement',
+          frameworks: [
+            { code: 'FAR', name: this.frameworks.FAR, isDefault: true }
+          ]
+        },
+        security: {
+          name: 'security',
+          displayName: 'Security & Cybersecurity',
+          frameworks: [
+            { code: 'FISMA', name: this.frameworks.FISMA, isDefault: true },
+            { code: 'NIST', name: this.frameworks.NIST, isDefault: true },
+            { code: 'CMMC', name: this.frameworks.CMMC, isDefault: false }
+          ]
+        }
+      };
+    }
+  }
+
+  /**
+   * Get frameworks for specific agency (database-driven)
+   */
+  async getFrameworksForAgency(agencyId, departmentId = null) {
+    try {
+      return await this.complianceFrameworkModel.getFrameworksForAgency(agencyId, departmentId);
+    } catch (error) {
+      logger.warn('Failed to load agency frameworks from database, falling back to legacy:', error);
+      // Fallback to default frameworks
+      return Object.entries(this.frameworks).map(([code, name]) => ({
+        code,
+        name,
+        isDefault: ['FAR', 'FISMA', 'SECTION508'].includes(code)
+      }));
+    }
   }
 
   /**
@@ -73,13 +144,24 @@ Format as structured text with clear categories.
 
       const requirements = this.parseRequirements(response);
 
+      // Detect cross-references between requirements
+      let crossReferences = null;
+      try {
+        logger.info('Detecting cross-references between requirements...');
+        crossReferences = await this.crossReferenceService.detectCrossReferences(requirements);
+      } catch (error) {
+        logger.warn(`Cross-reference detection failed: ${error.message}`);
+      }
+
       return {
         extractedRequirements: requirements,
+        crossReferences: crossReferences,
         rawAnalysis: response,
         documentLength: documentText.length,
         extractedAt: new Date().toISOString(),
         totalRequirements: requirements.length,
-        requirementsByCategory: this.categorizeRequirements(requirements)
+        requirementsByCategory: this.categorizeRequirements(requirements),
+        relationshipInsights: crossReferences ? this.generateRelationshipInsights(requirements, crossReferences) : null
       };
 
     } catch (error) {
@@ -588,6 +670,213 @@ Provide an overall compliance score (0-100%) and summary of critical gaps.
       shortTerm: requirements.filter(req => req.riskLevel === 'medium').slice(0, 5).map(req => `Implement ${req.id}`),
       longTerm: requirements.filter(req => req.riskLevel === 'low').slice(0, 3).map(req => `Monitor ${req.id}`)
     };
+  }
+
+  /**
+   * Generate insights from requirement relationships
+   */
+  generateRelationshipInsights(requirements, crossReferences) {
+    const insights = {
+      criticalRelationships: [],
+      costImpactChains: [],
+      staffingImplications: [],
+      riskAmplifiers: [],
+      implementationSequence: []
+    };
+
+    if (!crossReferences || !crossReferences.crossReferences) return insights;
+
+    const relationships = crossReferences.crossReferences;
+
+    // Find critical relationships (high confidence + high risk requirements)
+    insights.criticalRelationships = relationships
+      .filter(rel => rel.confidence > 0.6)
+      .filter(rel => {
+        const sourceReq = requirements.find(r => r.id === rel.sourceRequirement);
+        const targetReq = requirements.find(r => r.id === rel.targetRequirement);
+        return (sourceReq?.riskLevel === 'high') || (targetReq?.riskLevel === 'high');
+      })
+      .slice(0, 5);
+
+    // Cost impact chains
+    insights.costImpactChains = relationships
+      .filter(rel => rel.relationshipType.includes('cost') || rel.description.toLowerCase().includes('cost'))
+      .map(rel => ({
+        chain: `${rel.sourceRequirement} → ${rel.targetRequirement}`,
+        description: rel.description,
+        confidence: rel.confidence
+      }));
+
+    // Staffing implications
+    insights.staffingImplications = relationships
+      .filter(rel => rel.relationshipType === 'requires_expertise')
+      .map(rel => {
+        const sourceReq = requirements.find(r => r.id === rel.sourceRequirement);
+        return {
+          requirement: rel.sourceRequirement,
+          description: sourceReq?.description,
+          expertiseNeeded: rel.description
+        };
+      });
+
+    // Risk amplifiers (requirements that increase risk of others)
+    insights.riskAmplifiers = relationships
+      .filter(rel => {
+        const sourceReq = requirements.find(r => r.id === rel.sourceRequirement);
+        const targetReq = requirements.find(r => r.id === rel.targetRequirement);
+        return sourceReq?.riskLevel === 'high' && targetReq?.riskLevel !== 'low';
+      })
+      .slice(0, 3);
+
+    return insights;
+  }
+
+  /**
+   * Analyze cascading compliance impacts
+   */
+  async analyzeCascadingCompliance(requirements, crossReferences) {
+    try {
+      logger.info('Analyzing cascading compliance impacts');
+
+      if (!crossReferences?.crossReferences?.length) {
+        return { cascadingAnalysis: 'No cross-references available for analysis' };
+      }
+
+      // Build impact chains
+      const impactChains = this.buildImpactChains(requirements, crossReferences.crossReferences);
+
+      // Analyze cost implications
+      const costAnalysis = this.analyzeCostImplications(impactChains);
+
+      // Analyze staffing implications
+      const staffingAnalysis = this.analyzeStaffingImplications(impactChains);
+
+      // Generate recommendations
+      const recommendations = this.generateCascadingRecommendations(impactChains);
+
+      return {
+        impactChains: impactChains.slice(0, 10), // Top 10 most important chains
+        costAnalysis,
+        staffingAnalysis,
+        recommendations,
+        analyzedAt: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error(`Error analyzing cascading compliance: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Build impact chains from relationships
+   */
+  buildImpactChains(requirements, relationships) {
+    const chains = [];
+    const reqMap = requirements.reduce((acc, req) => {
+      acc[req.id] = req;
+      return acc;
+    }, {});
+
+    // Group relationships by source
+    const bySource = relationships.reduce((acc, rel) => {
+      if (!acc[rel.sourceRequirement]) acc[rel.sourceRequirement] = [];
+      acc[rel.sourceRequirement].push(rel);
+      return acc;
+    }, {});
+
+    // Build chains starting from high-impact requirements
+    Object.entries(bySource).forEach(([sourceId, rels]) => {
+      const sourceReq = reqMap[sourceId];
+      if (sourceReq && rels.length >= 2) { // Requirements with multiple impacts
+        chains.push({
+          rootRequirement: sourceReq,
+          impacts: rels.map(rel => ({
+            targetRequirement: reqMap[rel.targetRequirement],
+            relationshipType: rel.relationshipType,
+            confidence: rel.confidence,
+            description: rel.description
+          })),
+          totalImpacts: rels.length,
+          avgConfidence: rels.reduce((sum, rel) => sum + rel.confidence, 0) / rels.length
+        });
+      }
+    });
+
+    return chains.sort((a, b) => b.totalImpacts - a.totalImpacts);
+  }
+
+  /**
+   * Analyze cost implications from impact chains
+   */
+  analyzeCostImplications(impactChains) {
+    const costChains = impactChains.filter(chain =>
+      chain.impacts.some(impact =>
+        impact.relationshipType.includes('cost') ||
+        impact.description.toLowerCase().includes('cost')
+      )
+    );
+
+    return {
+      directCostImpacts: costChains.length,
+      highConfidenceCostImpacts: costChains.filter(chain => chain.avgConfidence > 0.6).length,
+      costDrivers: costChains.slice(0, 5).map(chain => ({
+        requirement: chain.rootRequirement.id,
+        description: chain.rootRequirement.description,
+        costImpacts: chain.impacts.filter(i => i.relationshipType.includes('cost')).length
+      }))
+    };
+  }
+
+  /**
+   * Analyze staffing implications from impact chains
+   */
+  analyzeStaffingImplications(impactChains) {
+    const staffingChains = impactChains.filter(chain =>
+      chain.impacts.some(impact =>
+        impact.relationshipType === 'requires_expertise' ||
+        impact.description.toLowerCase().includes('staff') ||
+        impact.description.toLowerCase().includes('skill')
+      )
+    );
+
+    return {
+      requirementsNeedingExpertise: staffingChains.length,
+      highPriorityStaffingNeeds: staffingChains.filter(chain =>
+        chain.rootRequirement.riskLevel === 'high'
+      ).length,
+      expertiseAreas: staffingChains.slice(0, 5).map(chain => ({
+        requirement: chain.rootRequirement.id,
+        description: chain.rootRequirement.description,
+        category: chain.rootRequirement.category
+      }))
+    };
+  }
+
+  /**
+   * Generate cascading recommendations
+   */
+  generateCascadingRecommendations(impactChains) {
+    return [
+      {
+        priority: 'high',
+        title: 'Address High-Impact Requirements First',
+        description: `Focus on requirements with ${impactChains.slice(0, 3).map(c => c.rootRequirement.id).join(', ')} as they have cascading effects`,
+        rationale: 'These requirements impact multiple other areas and should be planned comprehensively'
+      },
+      {
+        priority: 'medium',
+        title: 'Plan Cross-Functional Coordination',
+        description: 'Requirements have cross-dependencies requiring coordinated implementation',
+        rationale: 'Avoid implementation conflicts by planning related requirements together'
+      },
+      {
+        priority: 'medium',
+        title: 'Budget for Cascading Costs',
+        description: 'Include indirect costs from requirement relationships in budget planning',
+        rationale: 'Cross-referenced requirements often have hidden cost implications'
+      }
+    ];
   }
 
   /**

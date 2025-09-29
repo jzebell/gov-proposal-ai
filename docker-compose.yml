@@ -23,15 +23,22 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      ENABLE_MOCK_AUTH: true
       DB_HOST: database
       DB_PORT: 5432
       DB_NAME: govai
       DB_USER: govaiuser
       DB_PASSWORD: ${DB_PASSWORD}
-      OLLAMA_API_URL: http://ollama:11434
+      JWT_SECRET: dev-jwt-secret-key
+      SESSION_SECRET: dev-session-secret
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:14b-instruct-q4_0
+      OLLAMA_MODELS: qwen2.5:14b-instruct-q4_0
     ports:
       - "3001:3000"
+    volumes:
+      - E:/dev/gov-proposal-ai/data/uploads:/usr/src/app/uploads
     depends_on:
       - database
       - ollama
@@ -49,7 +56,7 @@ services:
       dockerfile: Dockerfile
     environment:
       REACT_APP_API_URL: http://localhost:3001
-      NODE_ENV: production
+      NODE_ENV: development
     ports:
       - "3000:3000"
     depends_on:

@@ -1,6 +1,6 @@
-# Government Proposal AI Assistant
+# nxtProposal
 
-A **locally-deployed AI assistant** for accelerating government proposal development. This system leverages local LLMs to provide intelligent analysis of solicitations (PWS, SOW, RFP, RFI), framework recommendations, and AI-powered section drafting while maintaining complete data security and control.
+A **locally-deployed AI assistant** for accelerating proposal development. This system leverages local LLMs to provide intelligent analysis of solicitations (PWS, SOW, RFP, RFI), framework recommendations, and AI-powered section drafting while maintaining complete data security and control.
 
 ---
 
@@ -13,7 +13,7 @@ This is a **production-ready prototype** that transforms government proposal dev
 - **Ensuring compliance** with automated requirement tracking
 - **Maintaining data security** with 100% local deployment
 
-**Current Status:** Infrastructure (Epic 5) and Solicitation Analysis (Epic 1 Phase 1) complete and operational.
+**Current Status:** Infrastructure (Epic 5), Solicitation Analysis (Epic 1), AI Writing (Epic 3), and Compliance (Epic 4) complete with comprehensive backend integration and advanced UI features deployed.
 
 ---
 
@@ -115,19 +115,57 @@ This is a **production-ready prototype** that transforms government proposal dev
 
 ## ✨ Current Features
 
-### 📄 Solicitation Analysis Engine (Epic 1 - Complete)
-- **Document Upload:** PDF/Word support with drag-and-drop interface
+### 🎨 **User Preferences System (v2.0 - NEW)**
+- **10 Predefined Color Palettes:** Light, Dark, Ocean Blue, Forest Green, Sunset Orange, Royal Purple, Crimson Red, Mint Green, Golden Yellow, Deep Teal
+- **10 Background Patterns:** Customizable workspace backgrounds with SVG patterns
+- **Advanced Customization:** Live preview with 4-color system (Background, Lowlight, Highlight, Selected)
+- **Persistent Settings:** User preferences saved across browser sessions
+- **Responsive Design:** Seamless experience on desktop and mobile
+
+### 📋 **Enhanced Project Management (v2.0 - NEW)**
+- **Real-time Project Display:** Dynamic loading of actual projects (no more hardcoded samples)
+- **Interactive Project Cards:** Functional View/Edit buttons with detailed modals
+- **Smart Due Date Management:** Date picker with validation and "days until due" feedback
+- **Advanced Sorting:** 5 sort options (Created Date, Name, Due Date, Document Type, Status) with persistent preferences
+- **Robust Error Handling:** Graceful API failures and loading states
+
+### ⚙️ **Administrative Settings (v2.0 - NEW)**
+- **Document Type Management:** Create, configure, and delete custom document types
+- **Subfolder Organization:** Dynamic subfolder management for each document type
+- **File Configuration:** Set allowed extensions and maximum file sizes
+- **Visual Admin Interface:** Intuitive card-based management system
+- **Future-Ready:** Prepared for backend API integration
+
+### 📄 **Solicitation Analysis Engine (Epic 1 - Complete)**
+- **Document Upload:** PDF/Word support with drag-and-drop interface and project organization
 - **Requirement Extraction:** AI-powered analysis of PWS/SOW/RFP/RFI documents
 - **Framework Recommendation:** Intelligent suggestions based on content analysis
 - **Processing Performance:** 150+ page documents in under 2 minutes
 
-### 🛠️ Infrastructure Foundation (Epic 5 - Complete)
+### 🤖 **AI Writing Assistant (Epic 3 - Complete with v2.1+ Backend Integration)**
+- **Enhanced Three-Panel Interface:** Resizable reading pane, writing interface, and project info panels with full backend integration
+- **Reading Pane:** Top-left panel with document content preview and click-to-view functionality
+- **No Hallucinations Mode:** Verifiable cited answers only with backend enforcement and document citation
+- **Advanced Model Selection:** Full Ollama integration with dynamic model loading and persona system
+- **Persona-Based Writing:** Professional writing personas (Technical Writer, Proposal Manager, Compliance Specialist)
+- **Enhanced Prompt System:** Support for both creative writing and strict document-based analysis with context injection
+- **Intelligent Section Generation:** Context-aware proposal section drafting with project context and citation tracking
+- **Real-time Streaming:** WebSocket-based AI response streaming with progress indicators
+- **Document Integration:** Full document upload, processing, and content serving system
+
+### 🛡️ **Compliance Management (Epic 4 - Complete)**
+- **Requirement Tracking:** Automated compliance verification against solicitation requirements
+- **Gap Analysis:** Identification of missing or incomplete proposal sections
+- **Scoring System:** Compliance rating with detailed breakdown
+- **Audit Trail:** Complete history of compliance checks and modifications
+
+### 🛠️ **Infrastructure Foundation (Epic 5 - Complete)**
 - **Containerized Deployment:** Full Docker Compose stack
 - **Local AI Integration:** Ollama with model management
 - **Database Setup:** PostgreSQL with vector search capabilities
 - **Development Environment:** Hot-reload and debugging support
 
-### 🔄 Real-time Streaming
+### 🔄 **Real-time Streaming**
 - **WebSocket Integration:** Live AI response streaming
 - **Progress Indicators:** Real-time processing status
 - **Error Handling:** Comprehensive error recovery
@@ -138,23 +176,49 @@ This is a **production-ready prototype** that transforms government proposal dev
 
 | Epic | Feature | Status | Progress |
 |------|---------|--------|----------|
-| 1 | Solicitation Analysis | ✅ Complete | Phase 1 Done |
-| 2 | Past Performance RAG | 🚧 Next | Not Started |
-| 3 | AI Writing Assistant | 📋 Planned | Design Phase |
-| 4 | Compliance Management | 📋 Planned | Design Phase |
+| 1 | Solicitation Analysis | ✅ Complete | Production Ready |
+| 2 | Past Performance RAG | 📋 Next Priority | Design Phase |
+| 3 | AI Writing Assistant | ✅ Complete | Production Ready |
+| 4 | Compliance Management | ✅ Complete | Production Ready |
 | 5 | Infrastructure | ✅ Complete | Production Ready |
+| 6 | **User Experience (v2.0)** | ✅ **Complete** | **Production Ready** |
 
-**Completed Milestones:**
+**Recently Completed (v2.1+ - September 2025):**
+- ✅ **Full Backend Integration** - Complete API implementation with Ollama AI engine integration
+- ✅ **Enhanced AI Writing Interface** - Resizable reading pane with real-time document content serving
+- ✅ **No Hallucinations Mode** - Server-side enforcement with document citation and verification
+- ✅ **Advanced Model & Persona System** - Dynamic model loading with professional writing personas
+- ✅ **Document Processing Pipeline** - Full upload, storage, and content serving system
+- ✅ **Real-time AI Streaming** - WebSocket-based streaming responses with progress indicators
+- ✅ **Enhanced User Management** - Authentication system with user preferences and session management
+- ✅ **Production-Ready Architecture** - Comprehensive error handling, logging, and monitoring
+
+**Previous Milestones (v2.0 - September 2025):**
+- ✅ **User Preferences System** - 10 color palettes + 10 background patterns
+- ✅ **Enhanced Project Management** - Real-time project display, sorting, due dates
+- ✅ **Administrative Settings** - Document type and subfolder management
+- ✅ **Interactive Project Cards** - View/Edit functionality with modals
+- ✅ **Due Date Management** - Date picker integration with validation
+- ✅ **Advanced Sorting** - 5 sort options with persistent preferences
+- ✅ **Error Handling Improvements** - Robust API failure management
+- ✅ **Responsive Design** - Mobile-first approach across all components
+
+**Previous Milestones:**
 - ✅ Containerized architecture deployed
 - ✅ Ollama integration with Qwen 2.5 14B
 - ✅ Document processing pipeline
-- ✅ Basic requirement extraction
-- ✅ Web interface with streaming
+- ✅ Three-panel AI writing interface
+- ✅ Compliance management system
+- ✅ Real-time streaming with WebSocket
 
 **Next Priorities:**
-- 🔄 Past Performance RAG system (Epic 2)
-- 🔄 Section-by-section AI writing (Epic 3)
-- 🔄 Compliance checking automation (Epic 4)
+- 🔄 **Past Performance RAG system (Epic 2)** - AI-powered past performance analysis with semantic search
+- 🔄 **Advanced Analytics** - Comprehensive usage metrics, performance monitoring, and reporting dashboard
+- 🔄 **Enterprise Features** - Multi-tenant support, advanced security, and audit logging
+- 🔄 **Government API Integration** - Direct procurement system connections and automated submissions
+
+**UI/UX Enhancements:**
+- 🎨 **Global Icon System** - Replace emoji icons with professional SVG icon set for consistency and scalability
 
 ---
 
@@ -176,13 +240,37 @@ This is a **production-ready prototype** that transforms government proposal dev
 
 ## 📚 Documentation
 
-All detailed documentation is located in the `/MD` directory:
+The project uses enterprise-standard documentation architecture located in the `/docs` directory:
 
-- **[Technical Specification](./MD/Government%20Proposal%20AI%20Assistant%20-%20Technical%20Specification%20v1.0.md)** - Complete system architecture and implementation details
-- **[Core Epics](./MD/Government%20Proposal%20AI%20Assistant%20-%20Core%20Epics%20v1.0.md)** - Feature roadmap and development priorities
-- **[Project History](./MD/PROJECT_HISTORY.md)** - Development timeline and milestones
-- **[Hardware Specs](./MD/Current%20local%20pc%20specs.md)** - Detailed hardware configuration and benchmarks
-- **[Claude Project Description](./MD/Claude%20Project%20Description%20-%20Government%20Proposal%20AI%20Assistant.md)** - AI collaboration framework
+### 🏗️ **System Architecture**
+- **[System Overview](./docs/ARCHITECTURE.md)** - Complete system architecture and design principles
+- **[Architectural Decisions](./docs/adr/)** - Formal architectural decision records (ADRs)
+  - [Documentation Restructuring](./docs/adr/2025-09-26-documentation-restructuring.md)
+  - [ML Intelligence Integration](./docs/adr/2025-09-25-ml-intelligence-integration.md)
+  - [Backend Integration Architecture](./docs/adr/2025-09-24-backend-integration-architecture.md)
+  - [Three-Panel UI Architecture](./docs/adr/2025-09-22-three-panel-ui-architecture.md)
+
+### 📋 **API Documentation**
+- **[AI Writing API](./docs/api/ai-writing-api.md)** - Complete AI generation and streaming API reference
+- **[Document Management API](./docs/api/document-management-api.md)** - Document upload, processing, and retrieval APIs
+- **[Authentication API](./docs/api/authentication-api.md)** - User authentication and session management
+- **[Compliance API](./docs/api/compliance-api.md)** - Compliance tracking and verification APIs
+
+### 🔧 **Technical Design**
+- **[Documentation Standards](./docs/design/2025-09-26-documentation-standards-design.md)** - Enterprise documentation architecture
+- **[Context Management System](./docs/design/2025-09-25-context-management-system.md)** - ML-powered document intelligence
+- **[AI Integration Design](./docs/design/2025-09-24-ai-integration-design.md)** - Ollama integration and streaming architecture
+
+### 📊 **Visual Architecture**
+- **[System Diagrams](./docs/diagrams/)** - Visual system architecture and data flow diagrams
+
+### 📖 **Additional Resources**
+- **[CHANGELOG](./CHANGELOG.md)** - Complete version history and feature documentation
+- **[Development Commands](#-development-commands)** - Quick reference for development workflow
+- **[Hardware Requirements](#-hardware-requirements)** - System requirements and performance benchmarks
+
+### 📂 **Historical Documentation**
+- **[Archive](./archive/)** - Pre-2025-09-26 documentation (historical reference only)
 
 ---
 

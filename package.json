@@ -1,8 +1,8 @@
 {
-    "name": "gov-proposal-ai",
+    "name": "nxtproposal",
     "version": "1.0.0",
     "private": true,
-    "description": "Government Proposal AI Assistant - Monorepo for backend and frontend",
+    "description": "nxtProposal - Monorepo for backend and frontend",
     "workspaces": [
         "packages/backend",
         "packages/frontend"

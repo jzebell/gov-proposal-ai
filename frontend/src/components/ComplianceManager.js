@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ComplianceManager = () => {
+const ComplianceManager = ({ theme }) => {
   const [activeTab, setActiveTab] = useState('extract');
   const [documentText, setDocumentText] = useState('');
   const [extractedRequirements, setExtractedRequirements] = useState([]);
@@ -11,7 +11,7 @@ const ComplianceManager = () => {
   const [templates, setTemplates] = useState({});
   const [healthStatus, setHealthStatus] = useState(null);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   useEffect(() => {
     loadFrameworks();
@@ -241,18 +241,25 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
 
   const renderRequirementsList = () => (
     <div>
-      <h4>Extracted Requirements ({extractedRequirements.length})</h4>
+      <h4 style={{ color: theme?.text || '#000', marginBottom: '12px' }}>Extracted Requirements ({extractedRequirements.length})</h4>
       {extractedRequirements.length === 0 ? (
-        <p>No requirements extracted yet. Use the "Extract Requirements" button.</p>
+        <p style={{ color: theme?.textSecondary || '#666' }}>No requirements extracted yet. Use the "Extract Requirements" button.</p>
       ) : (
-        <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px' }}>
+        <div style={{
+          maxHeight: '400px',
+          overflowY: 'auto',
+          border: `1px solid ${theme?.border || '#ddd'}`,
+          padding: '10px',
+          backgroundColor: theme?.surface || 'white'
+        }}>
           {extractedRequirements.map((req, index) => (
             <div key={index} style={{
               marginBottom: '10px',
               padding: '10px',
-              border: '1px solid #eee',
+              border: `1px solid ${theme?.border || '#eee'}`,
               borderRadius: '5px',
-              backgroundColor: req.riskLevel === 'high' ? '#fff5f5' : req.riskLevel === 'medium' ? '#fffbf0' : '#f0fff4'
+              backgroundColor: theme?.surface || (req.riskLevel === 'high' ? '#fff5f5' : req.riskLevel === 'medium' ? '#fffbf0' : '#f0fff4'),
+              color: theme?.text || '#000'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
@@ -290,7 +297,7 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
                   {req.riskLevel} risk
                 </span>
               </div>
-              <p style={{ margin: '5px 0', fontSize: '14px' }}>{req.description}</p>
+              <p style={{ margin: '8px 0', fontSize: '14px', color: theme?.text || '#000' }}>{req.description}</p>
             </div>
           ))}
         </div>
@@ -300,14 +307,14 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
 
   const renderComplianceMatrix = () => (
     <div>
-      <h4>Compliance Matrix</h4>
+      <h4 style={{ color: theme?.text || '#000', marginBottom: '12px' }}>Compliance Matrix</h4>
       {!complianceMatrix ? (
         <p>No compliance matrix generated yet. Extract requirements and click "Generate Matrix".</p>
       ) : (
         <div>
-          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
-            <h5>Summary</h5>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
+          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: theme?.surface || '#f8f9fa', borderRadius: '5px', color: theme?.text || '#000' }}>
+            <h5 style={{ color: theme?.text || '#000', marginBottom: '12px' }}>Summary</h5>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', color: theme?.text || '#000' }}>
               <div>Total Requirements: <strong>{complianceMatrix.summary.totalRequirements}</strong></div>
               <div>Fully Compliant: <strong>{complianceMatrix.summary.fullyCompliant}</strong></div>
               <div>Partially Compliant: <strong>{complianceMatrix.summary.partiallyCompliant}</strong></div>
@@ -320,8 +327,10 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
               <div key={index} style={{
                 marginBottom: '10px',
                 padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px'
+                border: `1px solid ${theme?.border || '#ddd'}`,
+                borderRadius: '5px',
+                backgroundColor: theme?.surface || 'white',
+                color: theme?.text || '#000'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <strong>{item.requirementId}</strong>
@@ -336,7 +345,7 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
                     {item.complianceStatus}
                   </span>
                 </div>
-                <p style={{ margin: '5px 0', fontSize: '13px' }}>{item.description}</p>
+                <p style={{ margin: '8px 0', fontSize: '13px', color: theme?.text || '#000' }}>{item.description}</p>
               </div>
             ))}
           </div>
@@ -347,27 +356,28 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
 
   const renderRiskAssessment = () => (
     <div>
-      <h4>Risk Assessment</h4>
+      <h4 style={{ color: theme?.text || '#000', marginBottom: '12px' }}>Risk Assessment</h4>
       {!riskAssessment ? (
-        <p>No risk assessment performed yet. Extract requirements and click "Risk Assessment".</p>
+        <p style={{ color: theme?.textSecondary || '#666' }}>No risk assessment performed yet. Extract requirements and click "Risk Assessment".</p>
       ) : (
         <div>
-          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+          <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: theme?.surface || '#f8f9fa', borderRadius: '5px', color: theme?.text || '#000' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-              <div>Requirements Analyzed: <strong>{riskAssessment.requirementsAnalyzed}</strong></div>
-              <div>Overall Risk Level: <strong style={{ color: riskAssessment.overallRiskLevel === 'high' ? '#dc3545' : '#ffc107' }}>
+              <div style={{ color: theme?.text || '#000' }}>Requirements Analyzed: <strong>{riskAssessment.requirementsAnalyzed}</strong></div>
+              <div style={{ color: theme?.text || '#000' }}>Overall Risk Level: <strong style={{ color: riskAssessment.overallRiskLevel === 'high' ? '#dc3545' : '#ffc107' }}>
                 {riskAssessment.overallRiskLevel}
               </strong></div>
-              <div>Critical Risks: <strong>{riskAssessment.criticalRisks}</strong></div>
+              <div style={{ color: theme?.text || '#000' }}>Critical Risks: <strong>{riskAssessment.criticalRisks}</strong></div>
             </div>
           </div>
           <div style={{
             maxHeight: '300px',
             overflowY: 'auto',
             padding: '10px',
-            border: '1px solid #ddd',
+            border: `1px solid ${theme?.border || '#ddd'}`,
             borderRadius: '5px',
-            backgroundColor: '#fff',
+            backgroundColor: theme?.surface || '#fff',
+            color: theme?.text || '#000',
             fontSize: '14px',
             whiteSpace: 'pre-wrap'
           }}>
@@ -379,8 +389,14 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
   );
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h2>🛡️ Epic 4: Compliance Management</h2>
+    <div style={{
+      padding: '20px',
+      fontFamily: 'Arial, sans-serif',
+      backgroundColor: theme?.background || 'white',
+      color: theme?.text || '#000',
+      minHeight: '100vh'
+    }}>
+      <h2 style={{ color: theme?.text || '#000' }}>🛡️ Epic 4: Compliance Management</h2>
 
       {/* Health Status */}
       <div style={{
@@ -399,7 +415,7 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>
+      <div style={{ marginBottom: '20px', borderBottom: `1px solid ${theme?.border || '#ddd'}` }}>
         {[
           { id: 'extract', label: '📋 Extract Requirements' },
           { id: 'matrix', label: '📊 Compliance Matrix' },
@@ -413,9 +429,10 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
               padding: '10px 20px',
               marginRight: '10px',
               border: 'none',
-              borderBottom: activeTab === tab.id ? '3px solid #007bff' : '3px solid transparent',
+              borderBottom: activeTab === tab.id ? `3px solid ${theme?.primary || '#007bff'}` : '3px solid transparent',
               backgroundColor: 'transparent',
               cursor: 'pointer',
+              color: theme?.text || '#000',
               fontWeight: activeTab === tab.id ? 'bold' : 'normal'
             }}
           >
@@ -438,9 +455,11 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
                   width: '100%',
                   height: '300px',
                   padding: '10px',
-                  border: '1px solid #ddd',
+                  border: `1px solid ${theme?.border || '#ddd'}`,
                   borderRadius: '5px',
-                  fontSize: '12px'
+                  fontSize: '12px',
+                  backgroundColor: theme?.surface || 'white',
+                  color: theme?.text || '#000'
                 }}
               />
               <div style={{ marginTop: '10px' }}>
@@ -526,33 +545,35 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
       {/* Frameworks Tab */}
       {activeTab === 'frameworks' && (
         <div>
-          <h3>Supported Compliance Frameworks</h3>
+          <h3 style={{ color: theme?.text || '#000', marginBottom: '16px' }}>Supported Compliance Frameworks</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
             {Object.entries(frameworks).map(([code, name]) => (
               <div key={code} style={{
                 padding: '15px',
-                border: '1px solid #ddd',
+                border: `1px solid ${theme?.border || '#ddd'}`,
                 borderRadius: '5px',
-                backgroundColor: '#f8f9fa'
+                backgroundColor: theme?.surface || '#f8f9fa',
+                color: theme?.text || '#000'
               }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#007bff' }}>{code}</h4>
+                <h4 style={{ margin: '0 0 10px 0', color: theme?.primary || '#007bff' }}>{code}</h4>
                 <p style={{ margin: 0, fontSize: '14px' }}>{name}</p>
               </div>
             ))}
           </div>
 
-          <h3 style={{ marginTop: '30px' }}>Requirement Templates</h3>
+          <h3 style={{ marginTop: '30px', color: theme?.text || '#000', marginBottom: '16px' }}>Requirement Templates</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
             {Object.entries(templates).map(([key, template]) => (
               <div key={key} style={{
                 padding: '15px',
-                border: '1px solid #ddd',
+                border: `1px solid ${theme?.border || '#ddd'}`,
                 borderRadius: '5px',
-                backgroundColor: '#fff'
+                backgroundColor: theme?.surface || '#fff',
+                color: theme?.text || '#000'
               }}>
-                <h4 style={{ margin: '0 0 10px 0' }}>{template.name}</h4>
-                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666' }}>{template.description}</p>
-                <div style={{ fontSize: '12px' }}>
+                <h4 style={{ margin: '0 0 10px 0', color: theme?.text || '#000' }}>{template.name}</h4>
+                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: theme?.textSecondary || '#666' }}>{template.description}</p>
+                <div style={{ fontSize: '12px', color: theme?.textSecondary || '#666' }}>
                   <strong>Framework:</strong> {template.framework}
                   <br />
                   <strong>Categories:</strong> {template.categories?.join(', ')}
@@ -567,11 +588,12 @@ Estimated requirements: ${data.data.estimatedRequirements}`);
       <div style={{
         marginTop: '30px',
         padding: '15px',
-        backgroundColor: '#e9ecef',
-        borderRadius: '5px'
+        backgroundColor: theme?.surface || '#e9ecef',
+        borderRadius: '5px',
+        color: theme?.text || '#000'
       }}>
-        <h4>🎯 Epic 4 Features Available:</h4>
-        <ul>
+        <h4 style={{ color: theme?.text || '#000', marginBottom: '16px' }}>🎯 Epic 4 Features Available:</h4>
+        <ul style={{ color: theme?.text || '#000' }}>
           <li><strong>Requirements Extraction</strong> - AI-powered analysis of solicitation documents</li>
           <li><strong>Compliance Matrix</strong> - Track requirement coverage and evidence</li>
           <li><strong>Risk Assessment</strong> - Identify and prioritize compliance risks</li>

@@ -5,12 +5,65 @@
 
 const express = require('express');
 const AIWritingService = require('../services/AIWritingService');
+const ModelWarmupService = require('../services/ModelWarmupService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { sanitizeInput } = require('../middleware/validation');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 const aiWritingService = new AIWritingService();
+const modelWarmupService = new ModelWarmupService();
+
+/**
+ * @route POST /api/ai-writing/generate
+ * @desc Generate content using AI (v2.1 enhanced endpoint)
+ * @access Public (would be Private in production)
+ */
+router.post('/generate', sanitizeInput, asyncHandler(async (req, res) => {
+  const { prompt, model, noHallucinations, showThinking, projectContext, personaId } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({
+      success: false,
+      message: 'Prompt is required'
+    });
+  }
+
+  logger.info(`Generating content with model: ${model || 'default'}`);
+
+  try {
+    // For now, use the existing generateSection method
+    // This will be enhanced when the AIWritingService is updated for v2.1
+    const result = await aiWritingService.generateSection(
+      prompt,
+      null, // sectionType is deprecated in favor of personas
+      {
+        model,
+        noHallucinations,
+        showThinking,
+        projectContext,
+        personaId
+      }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        content: result.content || result.text || result,
+        model: model || 'default',
+        tokens: result.tokens || prompt.split(' ').length,
+        citations: result.citations || []
+      }
+    });
+  } catch (error) {
+    logger.error(`Error generating content: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate content',
+      error: error.message
+    });
+  }
+}));
 
 /**
  * @route POST /api/ai-writing/generate-section
@@ -117,7 +170,7 @@ router.get('/models', asyncHandler(async (req, res) => {
     success: true,
     data: {
       models,
-      currentModel: process.env.OLLAMA_MODEL || 'qwen2.5:14b',
+      currentModel: process.env.OLLAMA_MODEL || 'gemma2:9b',
       ollamaUrl: process.env.OLLAMA_URL || 'http://localhost:11434'
     }
   });
@@ -256,6 +309,111 @@ router.post('/batch-generate', sanitizeInput, asyncHandler(async (req, res) => {
       errorCount: errors.length
     }
   });
+}));
+
+/**
+ * @route GET /api/ai-writing/warmup/status
+ * @desc Get model warm-up status
+ * @access Public
+ */
+router.get('/warmup/status', asyncHandler(async (req, res) => {
+  const { model } = req.query;
+
+  try {
+    const status = modelWarmupService.getWarmupStatus(model);
+
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    logger.error(`Error getting warmup status: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get warmup status',
+      error: error.message
+    });
+  }
+}));
+
+/**
+ * @route POST /api/ai-writing/warmup/model
+ * @desc Warm up a specific model
+ * @access Public
+ */
+router.post('/warmup/model', sanitizeInput, asyncHandler(async (req, res) => {
+  const { model, priority = 'normal' } = req.body;
+
+  if (!model) {
+    return res.status(400).json({
+      success: false,
+      message: 'Model name is required'
+    });
+  }
+
+  try {
+    const result = await modelWarmupService.warmupModel(model, priority);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    logger.error(`Error warming up model: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to warm up model',
+      error: error.message
+    });
+  }
+}));
+
+/**
+ * @route POST /api/ai-writing/warmup/smart
+ * @desc Perform smart warm-up based on context
+ * @access Public
+ */
+router.post('/warmup/smart', sanitizeInput, asyncHandler(async (req, res) => {
+  const context = req.body || {};
+
+  try {
+    const result = await modelWarmupService.smartWarmup(context);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    logger.error(`Error performing smart warmup: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform smart warmup',
+      error: error.message
+    });
+  }
+}));
+
+/**
+ * @route GET /api/ai-writing/warmup/health
+ * @desc Get warm-up service health status
+ * @access Public
+ */
+router.get('/warmup/health', asyncHandler(async (req, res) => {
+  try {
+    const health = await modelWarmupService.getServiceHealth();
+
+    res.json({
+      success: true,
+      data: health
+    });
+  } catch (error) {
+    logger.error(`Error getting warmup service health: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get warmup service health',
+      error: error.message
+    });
+  }
 }));
 
 module.exports = router;

@@ -6,81 +6,48 @@
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
+const Document = require('../models/Document');
+const DocumentType = require('../models/DocumentType');
 
 class DocumentManagerService {
   constructor() {
     this.baseUploadPath = process.env.UPLOAD_PATH || path.join(__dirname, '../../uploads');
-    this.documentTypes = {
-      'solicitations': {
-        name: 'Solicitations',
-        description: 'RFPs, RFIs, Sources Sought, and other government solicitations',
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt'],
-        maxSize: 50 * 1024 * 1024, // 50MB
-        subfolders: ['active', 'archived', 'drafts']
-      },
-      'past-performance': {
-        name: 'Past Performance',
-        description: 'Project documentation, case studies, and performance records',
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.ppt', '.pptx'],
-        maxSize: 100 * 1024 * 1024, // 100MB
-        subfolders: ['federal', 'commercial', 'international', 'internal']
-      },
-      'proposals': {
-        name: 'Proposals',
-        description: 'Draft and final proposal documents',
-        allowedExtensions: ['.pdf', '.doc', '.docx'],
-        maxSize: 200 * 1024 * 1024, // 200MB
-        subfolders: ['active', 'submitted', 'won', 'lost', 'templates']
-      },
-      'compliance': {
-        name: 'Compliance Documents',
-        description: 'Compliance certificates, audit reports, and regulatory documents',
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt'],
-        maxSize: 25 * 1024 * 1024, // 25MB
-        subfolders: ['certificates', 'audits', 'policies', 'procedures']
-      },
-      'references': {
-        name: 'Reference Materials',
-        description: 'Templates, guidelines, and reference documents',
-        allowedExtensions: ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx'],
-        maxSize: 50 * 1024 * 1024, // 50MB
-        subfolders: ['templates', 'guidelines', 'standards', 'training']
-      },
-      'media': {
-        name: 'Media Files',
-        description: 'Images, videos, and presentation materials',
-        allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.ppt', '.pptx'],
-        maxSize: 500 * 1024 * 1024, // 500MB
-        subfolders: ['images', 'videos', 'presentations', 'graphics']
-      }
-    };
+    this.documentModel = new Document();
+    this.documentTypeModel = new DocumentType();
 
     this.initializeDirectories();
   }
 
   /**
-   * Initialize directory structure
+   * Initialize directory structure using database document types
    */
   async initializeDirectories() {
     try {
       // Create base upload directory
       await fs.mkdir(this.baseUploadPath, { recursive: true });
 
+      // Get document types from database
+      const documentTypes = await this.documentTypeModel.listDocumentTypes({ is_active: true });
+
       // Create category directories and subfolders
-      for (const [categoryKey, category] of Object.entries(this.documentTypes)) {
-        const categoryPath = path.join(this.baseUploadPath, categoryKey);
+      for (const docType of documentTypes) {
+        const categoryPath = path.join(this.baseUploadPath, docType.key);
         await fs.mkdir(categoryPath, { recursive: true });
 
         // Create subfolders
-        for (const subfolder of category.subfolders) {
+        for (const subfolder of docType.subfolders || ['general']) {
           const subfolderPath = path.join(categoryPath, subfolder);
           await fs.mkdir(subfolderPath, { recursive: true });
         }
       }
 
-      logger.info('Document directory structure initialized');
+      logger.info('Document directory structure initialized from database');
     } catch (error) {
       logger.error(`Error initializing directories: ${error.message}`);
+      // Fallback: create basic structure
+      await fs.mkdir(path.join(this.baseUploadPath, 'general'), { recursive: true });
     }
   }
 
@@ -98,66 +65,76 @@ class DocumentManagerService {
         uploadedBy = 'system'
       } = metadata;
 
-      // Validate category
-      if (!this.documentTypes[category]) {
-        throw new Error(`Invalid document category: ${category}`);
-      }
+      // Validate category using database
+      const categoryConfig = await this.documentTypeModel.validateFileType(
+        category,
+        file.originalname,
+        file.size
+      );
 
-      const categoryConfig = this.documentTypes[category];
-
-      // Validate file extension
-      const fileExt = path.extname(file.originalname).toLowerCase();
-      if (!categoryConfig.allowedExtensions.includes(fileExt)) {
-        throw new Error(`File type ${fileExt} not allowed for ${category}. Allowed: ${categoryConfig.allowedExtensions.join(', ')}`);
-      }
-
-      // Validate file size
-      if (file.size > categoryConfig.maxSize) {
-        throw new Error(`File size exceeds limit for ${category}. Max: ${Math.round(categoryConfig.maxSize / 1024 / 1024)}MB`);
-      }
+      // For compatibility, map database structure to expected format
+      categoryConfig.subfolders = categoryConfig.subfolders || ['general'];
 
       // Determine target directory
       let targetDir = path.join(this.baseUploadPath, category);
-      if (subfolder && categoryConfig.subfolders.includes(subfolder)) {
+
+      // If projectName is provided, create project-specific folder
+      if (projectName) {
+        const sanitizedProjectName = projectName.replace(/[^a-zA-Z0-9-_\s]/g, '_');
+        targetDir = path.join(targetDir, sanitizedProjectName);
+      } else if (subfolder && categoryConfig.subfolders.includes(subfolder)) {
         targetDir = path.join(targetDir, subfolder);
       }
 
       // Generate unique filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const basename = path.parse(file.originalname).name.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const fileExt = path.parse(file.originalname).ext;
       const uniqueFilename = `${timestamp}_${basename}${fileExt}`;
       const targetPath = path.join(targetDir, uniqueFilename);
 
-      // Save file
-      await fs.writeFile(targetPath, file.buffer);
+      // Ensure target directory exists
+      await fs.mkdir(targetDir, { recursive: true });
 
-      // Create document record
-      const documentRecord = {
-        id: this.generateDocumentId(),
+      // Move file from temp location to target location (handle cross-device)
+      try {
+        await fs.rename(file.path, targetPath);
+      } catch (error) {
+        if (error.code === 'EXDEV') {
+          // Cross-device link not permitted, use copy + unlink instead
+          await fs.copyFile(file.path, targetPath);
+          await fs.unlink(file.path);
+        } else {
+          throw error;
+        }
+      }
+
+      // Read file content for metadata calculations
+      const fileBuffer = await fs.readFile(targetPath);
+
+      // Create document record in database
+      const documentRecord = await this.documentModel.create({
         filename: uniqueFilename,
         originalName: file.originalname,
         path: targetPath,
         relativePath: path.relative(this.baseUploadPath, targetPath),
         category: category,
         subfolder: subfolder,
+        projectName: projectName,
         size: file.size,
         mimeType: file.mimetype,
         extension: fileExt,
-        projectName: projectName,
         tags: tags,
         description: description,
         uploadedBy: uploadedBy,
-        uploadedAt: new Date().toISOString(),
-        lastModified: new Date().toISOString(),
-        downloadCount: 0,
         metadata: {
-          checksum: await this.calculateChecksum(file.buffer),
-          wordCount: this.estimateWordCount(file.buffer, fileExt),
-          pageCount: this.estimatePageCount(file.buffer, fileExt)
+          checksum: await this.calculateChecksum(fileBuffer),
+          wordCount: this.estimateWordCount(fileBuffer, fileExt),
+          pageCount: this.estimatePageCount(fileBuffer, fileExt)
         }
-      };
+      });
 
-      logger.info(`Document uploaded: ${uniqueFilename} to ${category}/${subfolder || 'root'}`);
+      logger.info(`Document uploaded: ${uniqueFilename} to ${category}/${projectName || subfolder || 'root'}`);
 
       return documentRecord;
 
@@ -168,9 +145,35 @@ class DocumentManagerService {
   }
 
   /**
+   * Upload multiple documents
+   */
+  async uploadDocuments(files, documentType, subfolder, projectName, metadata = {}) {
+    try {
+      const results = [];
+
+      for (const file of files) {
+        const fileMetadata = {
+          category: documentType,
+          subfolder,
+          projectName,
+          ...metadata
+        };
+
+        const result = await this.uploadDocument(file, fileMetadata);
+        results.push(result);
+      }
+
+      return results;
+    } catch (error) {
+      logger.error(`Error uploading documents: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * List documents by category and subfolder
    */
-  async listDocuments(category = null, subfolder = null, filters = {}) {
+  async listDocuments(category = null, subfolder = null, projectName = null, filters = {}) {
     try {
       const {
         searchTerm = '',
@@ -185,77 +188,43 @@ class DocumentManagerService {
 
       let searchPath = this.baseUploadPath;
       if (category) {
-        if (!this.documentTypes[category]) {
+        // Validate category using database
+        const docType = await this.documentTypeModel.getDocumentTypeByKey(category);
+        if (!docType) {
           throw new Error(`Invalid category: ${category}`);
         }
         searchPath = path.join(searchPath, category);
 
-        if (subfolder) {
-          if (!this.documentTypes[category].subfolders.includes(subfolder)) {
+        // If projectName is provided, look in project-specific folder
+        if (projectName) {
+          const sanitizedProjectName = projectName.replace(/[^a-zA-Z0-9-_\s]/g, '_');
+          searchPath = path.join(searchPath, sanitizedProjectName);
+        } else if (subfolder) {
+          if (!docType.subfolders.includes(subfolder)) {
             throw new Error(`Invalid subfolder: ${subfolder} for category: ${category}`);
           }
           searchPath = path.join(searchPath, subfolder);
         }
       }
 
-      const documents = await this.scanDirectory(searchPath, category, subfolder);
-
-      // Apply filters
-      let filteredDocs = documents;
-
-      if (searchTerm) {
-        filteredDocs = filteredDocs.filter(doc =>
-          doc.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          doc.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (doc.projectName && doc.projectName.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
-      }
-
-      if (tags.length > 0) {
-        filteredDocs = filteredDocs.filter(doc =>
-          tags.some(tag => doc.tags.includes(tag))
-        );
-      }
-
-      if (dateFrom) {
-        filteredDocs = filteredDocs.filter(doc =>
-          new Date(doc.uploadedAt) >= new Date(dateFrom)
-        );
-      }
-
-      if (dateTo) {
-        filteredDocs = filteredDocs.filter(doc =>
-          new Date(doc.uploadedAt) <= new Date(dateTo)
-        );
-      }
-
-      // Sort documents
-      filteredDocs.sort((a, b) => {
-        let aVal = a[sortBy];
-        let bVal = b[sortBy];
-
-        if (sortBy.includes('At') || sortBy.includes('Date')) {
-          aVal = new Date(aVal);
-          bVal = new Date(bVal);
-        }
-
-        if (sortOrder === 'desc') {
-          return bVal > aVal ? 1 : -1;
-        } else {
-          return aVal > bVal ? 1 : -1;
-        }
-      });
-
-      // Apply pagination
-      const paginatedDocs = filteredDocs.slice(offset, offset + limit);
-
-      return {
-        documents: paginatedDocs,
-        total: filteredDocs.length,
-        offset: offset,
-        limit: limit,
-        hasMore: offset + limit < filteredDocs.length
+      // Query database for documents
+      const dbFilters = {
+        category,
+        subfolder: projectName ? undefined : subfolder, // Don't use subfolder if projectName is provided
+        projectName,
+        searchTerm,
+        tags,
+        dateFrom,
+        dateTo,
+        sortBy,
+        sortOrder
       };
+
+      logger.info(`Querying database for documents with filters:`, dbFilters);
+      const result = await this.documentModel.list(dbFilters, { limit, offset });
+      logger.info(`Found ${result.documents.length} documents in database`);
+
+      return result;
 
     } catch (error) {
       logger.error(`Error listing documents: ${error.message}`);
@@ -268,29 +237,8 @@ class DocumentManagerService {
    */
   async getDocumentStructure() {
     try {
-      const structure = {};
-
-      for (const [categoryKey, category] of Object.entries(this.documentTypes)) {
-        const categoryPath = path.join(this.baseUploadPath, categoryKey);
-        const categoryStats = await this.getDirectoryStats(categoryPath);
-
-        structure[categoryKey] = {
-          name: category.name,
-          description: category.description,
-          stats: categoryStats,
-          subfolders: {}
-        };
-
-        // Get subfolder stats
-        for (const subfolder of category.subfolders) {
-          const subfolderPath = path.join(categoryPath, subfolder);
-          const subfolderStats = await this.getDirectoryStats(subfolderPath);
-          structure[categoryKey].subfolders[subfolder] = subfolderStats;
-        }
-      }
-
-      return structure;
-
+      // Use the DocumentType model's getDocumentStructure method
+      return await this.documentTypeModel.getDocumentStructure();
     } catch (error) {
       logger.error(`Error getting document structure: ${error.message}`);
       throw error;
@@ -305,11 +253,11 @@ class DocumentManagerService {
       // In a real implementation, this would update the database record
       // For now, we'll simulate the move operation
 
-      if (!this.documentTypes[newCategory]) {
+      const categoryConfig = await this.documentTypeModel.getDocumentTypeByKey(newCategory);
+      if (!categoryConfig) {
         throw new Error(`Invalid target category: ${newCategory}`);
       }
 
-      const categoryConfig = this.documentTypes[newCategory];
       if (newSubfolder && !categoryConfig.subfolders.includes(newSubfolder)) {
         throw new Error(`Invalid target subfolder: ${newSubfolder}`);
       }
@@ -364,7 +312,8 @@ class DocumentManagerService {
    */
   async createProjectFolder(category, projectName, description = '') {
     try {
-      if (!this.documentTypes[category]) {
+      const categoryConfig = await this.documentTypeModel.getDocumentTypeByKey(category);
+      if (!categoryConfig) {
         throw new Error(`Invalid category: ${category}`);
       }
 
@@ -397,6 +346,116 @@ class DocumentManagerService {
 
     } catch (error) {
       logger.error(`Error creating project folder: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * List all project folders
+   */
+  async listProjects(documentType = null) {
+    try {
+      const projects = [];
+
+      if (documentType) {
+        // List projects for specific document type
+        const docType = await this.documentTypeModel.getDocumentTypeByKey(documentType);
+        if (!docType) {
+          throw new Error(`Invalid document type: ${documentType}`);
+        }
+
+        const categoryPath = path.join(this.baseUploadPath, documentType);
+        try {
+          const items = await fs.readdir(categoryPath, { withFileTypes: true });
+
+          for (const item of items) {
+            if (item.isDirectory() && !docType.subfolders.includes(item.name)) {
+              // This is a project folder (not a predefined subfolder)
+              const projectPath = path.join(categoryPath, item.name);
+              const stats = await fs.stat(projectPath);
+
+              // Try to read project metadata for accurate createdAt
+              let createdAt = stats.birthtime;
+              try {
+                const metadataPath = path.join(projectPath, '_project.json');
+                const metadataContent = await fs.readFile(metadataPath, 'utf8');
+                const metadata = JSON.parse(metadataContent);
+                if (metadata.createdAt) {
+                  createdAt = metadata.createdAt;
+                }
+              } catch (err) {
+                // Use filesystem time if metadata not found
+                logger.debug(`No metadata found for project ${item.name}, using filesystem time`);
+              }
+
+              projects.push({
+                name: item.name,
+                path: projectPath,
+                documentType: documentType,
+                createdAt: createdAt,
+                modifiedAt: stats.mtime
+              });
+            }
+          }
+        } catch (err) {
+          // Category directory might not exist yet
+          if (err.code !== 'ENOENT') {
+            throw err;
+          }
+        }
+      } else {
+        // List projects across all document types
+        const documentTypes = await this.documentTypeModel.listDocumentTypes({ is_active: true });
+
+        for (const docType of documentTypes) {
+          const categoryPath = path.join(this.baseUploadPath, docType.key);
+
+          try {
+            const items = await fs.readdir(categoryPath, { withFileTypes: true });
+
+            for (const item of items) {
+              if (item.isDirectory() && !docType.subfolders.includes(item.name)) {
+                const projectPath = path.join(categoryPath, item.name);
+                const stats = await fs.stat(projectPath);
+
+                // Try to read project metadata for accurate createdAt
+                let createdAt = stats.birthtime;
+                try {
+                  const metadataPath = path.join(projectPath, '_project.json');
+                  const metadataContent = await fs.readFile(metadataPath, 'utf8');
+                  const metadata = JSON.parse(metadataContent);
+                  if (metadata.createdAt) {
+                    createdAt = metadata.createdAt;
+                  }
+                } catch (err) {
+                  // Use filesystem time if metadata not found
+                  logger.debug(`No metadata found for project ${item.name}, using filesystem time`);
+                }
+
+                projects.push({
+                  name: item.name,
+                  path: projectPath,
+                  documentType: docType.key,
+                  createdAt: createdAt,
+                  modifiedAt: stats.mtime
+                });
+              }
+            }
+          } catch (err) {
+            // Category directory might not exist yet
+            if (err.code !== 'ENOENT') {
+              throw err;
+            }
+          }
+        }
+      }
+
+      // Sort projects by modification time (newest first)
+      projects.sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+
+      return projects;
+    } catch (error) {
+      logger.error(`Error listing projects: ${error.message}`);
       throw error;
     }
   }
@@ -534,8 +593,8 @@ class DocumentManagerService {
   /**
    * Get document categories and their configurations
    */
-  getDocumentTypes() {
-    return this.documentTypes;
+  async getDocumentTypes() {
+    return await this.documentTypeModel.getDocumentStructure();
   }
 
   /**
@@ -546,7 +605,8 @@ class DocumentManagerService {
       const allDocuments = [];
 
       // Search in all categories
-      for (const categoryKey of Object.keys(this.documentTypes)) {
+      const documentStructure = await this.documentTypeModel.getDocumentStructure();
+      for (const categoryKey of Object.keys(documentStructure)) {
         const categoryDocs = await this.listDocuments(categoryKey, null, {
           searchTerm: query,
           ...filters,
@@ -599,6 +659,134 @@ class DocumentManagerService {
     }
 
     return score;
+  }
+
+  /**
+   * Extract text content from document based on file type
+   */
+  async extractDocumentText(filePath) {
+    try {
+      const extension = path.extname(filePath).toLowerCase();
+      const buffer = await fs.readFile(filePath);
+
+      logger.info(`Extracting text from ${extension} file: ${path.basename(filePath)}`);
+
+      switch (extension) {
+        case '.pdf':
+          return await this.extractPdfText(buffer);
+
+        case '.docx':
+          return await this.extractDocxText(buffer);
+
+        case '.doc':
+          // Note: .doc files require additional parsing, for now return basic info
+          return `Document: ${path.basename(filePath)}\n\nThis is a legacy .doc file. Please convert to .docx format for better text extraction.`;
+
+        case '.txt':
+          return buffer.toString('utf-8');
+
+        default:
+          throw new Error(`Unsupported file type: ${extension}`);
+      }
+    } catch (error) {
+      logger.error(`Error extracting text from ${filePath}: ${error.message}`);
+      throw new Error(`Failed to extract text from document: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from PDF using pdf-parse
+   */
+  async extractPdfText(buffer) {
+    try {
+      const data = await pdfParse(buffer);
+      return data.text;
+    } catch (error) {
+      logger.error(`PDF parsing error: ${error.message}`);
+      throw new Error(`Failed to parse PDF: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from DOCX using mammoth
+   */
+  async extractDocxText(buffer) {
+    try {
+      const result = await mammoth.extractRawText({ buffer: buffer });
+      return result.value;
+    } catch (error) {
+      logger.error(`DOCX parsing error: ${error.message}`);
+      throw new Error(`Failed to parse DOCX: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get document text content for reading pane and AI context
+   */
+  async getDocumentContent(documentType, projectTitle, documentName) {
+    try {
+      const normalizedDocumentType = documentType.toLowerCase();
+
+      // Find the document in database by original name
+      const documents = await this.documentModel.list({
+        category: normalizedDocumentType,
+        projectName: projectTitle
+      }, { limit: 1000 });
+
+      const document = documents.documents.find(doc =>
+        doc.originalName === documentName || doc.filename === documentName
+      );
+
+      if (!document) {
+        throw new Error(`Document not found: ${documentName}`);
+      }
+
+      // Use the actual stored file path from database
+      const documentPath = document.path;
+      logger.info(`Loading document from: ${documentPath}`);
+
+      // Extract text content
+      const textContent = await this.extractDocumentText(documentPath);
+
+      // Get file stats for metadata
+      const stats = await fs.stat(documentPath);
+
+      return {
+        content: textContent,
+        metadata: {
+          filename: documentName,
+          documentType: documentType,
+          projectTitle: projectTitle,
+          size: stats.size,
+          formattedSize: this.formatFileSize(stats.size),
+          lastModified: stats.mtime,
+          wordCount: this.countWords(textContent),
+          extension: path.extname(documentName).toLowerCase()
+        }
+      };
+    } catch (error) {
+      logger.error(`Error getting document content: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Count words in text content
+   */
+  countWords(text) {
+    if (!text || typeof text !== 'string') return 0;
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  /**
+   * Format file size for display
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
 

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-const DocumentUpload = () => {
+const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = null, droppedFiles = [], theme }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [documentType, setDocumentType] = useState('solicitations');
+    const [documentClassification, setDocumentClassification] = useState('');
     const [subfolder, setSubfolder] = useState('');
     const [projectName, setProjectName] = useState('');
     const [documentStructure, setDocumentStructure] = useState(null);
@@ -13,21 +14,80 @@ const DocumentUpload = () => {
     const [showCreateProject, setShowCreateProject] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
     const [newProjectDescription, setNewProjectDescription] = useState('');
+    const [newProjectDueDate, setNewProjectDueDate] = useState('');
+    const [availableProjects, setAvailableProjects] = useState([]);
+    const [filteredProjects, setFilteredProjects] = useState([]);
+    const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
+    const [newProjectOwner, setNewProjectOwner] = useState(null);
 
-    // Load document structure on component mount
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+    // Mock users data for owner selection (same as in Layout.js)
+    const mockUsers = [
+        { id: 1, name: 'Alice Johnson', email: 'alice.johnson@agency.gov', avatar: 'A', color: '#007bff' },
+        { id: 2, name: 'Bob Williams', email: 'bob.williams@agency.gov', avatar: 'B', color: '#28a745' },
+        { id: 3, name: 'Carol Martinez', email: 'carol.martinez@agency.gov', avatar: 'C', color: '#dc3545' },
+        { id: 4, name: 'David Chen', email: 'david.chen@agency.gov', avatar: 'D', color: '#6f42c1' },
+        { id: 5, name: 'Elena Rodriguez', email: 'elena.rodriguez@agency.gov', avatar: 'E', color: '#fd7e14' },
+        { id: 6, name: 'Frank Thompson', email: 'frank.thompson@agency.gov', avatar: 'F', color: '#20c997' }
+    ];
+
+    // Load document structure and projects on component mount
     useEffect(() => {
         loadDocumentStructure();
+        loadAvailableProjects();
+        // Set default owner to first user
+        if (mockUsers.length > 0) {
+            setNewProjectOwner(mockUsers[0]);
+        }
     }, []);
+
+    // Projects are loaded once on mount and don't need to reload when document type changes
+
+    // Pre-populate with dropped files and selected project when props change
+    useEffect(() => {
+        if (droppedFiles && droppedFiles.length > 0) {
+            setSelectedFiles(droppedFiles);
+        }
+
+        if (selectedProject) {
+            setProjectName(selectedProject.title || '');
+            if (selectedProject.documentType) {
+                // Map from the project's document type to the form's document type
+                const projectDocType = selectedProject.documentType.toLowerCase();
+                setDocumentType(projectDocType === 'rfp' || projectDocType === 'rfi' || projectDocType === 'sow' || projectDocType === 'pws' ? 'solicitations' : projectDocType);
+            }
+        }
+    }, [droppedFiles, selectedProject]);
 
     const loadDocumentStructure = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/documents/structure');
+            const response = await fetch(`${apiUrl}/api/documents/structure`);
             if (response.ok) {
                 const result = await response.json();
                 setDocumentStructure(result.data);
+            } else {
+                console.error('Failed to load document structure - response not ok:', response.status);
             }
         } catch (err) {
             console.error('Failed to load document structure:', err);
+        }
+    };
+
+    const loadAvailableProjects = async () => {
+        try {
+            const response = await fetch(`${apiUrl}/api/projects`);
+            if (response.ok) {
+                const result = await response.json();
+                // Extract projects array from the API response structure
+                const projects = result.data?.projects || [];
+                // Filter projects by status (only show active projects)
+                const activeProjects = projects.filter(project => project.status === 'active');
+                setAvailableProjects(activeProjects);
+                setFilteredProjects(activeProjects);
+            }
+        } catch (err) {
+            console.error('Failed to load projects:', err);
         }
     };
 
@@ -41,6 +101,52 @@ const DocumentUpload = () => {
         setDocumentType(event.target.value);
         setSubfolder(''); // Reset subfolder when type changes
         setProjectName('');
+        setShowProjectSuggestions(false);
+        // Reset document classification when storage type changes
+        setDocumentClassification('');
+    };
+
+    const getDocumentClassificationOptions = () => {
+        // Use the document structure from the database to get context-specific classifications
+        if (!documentStructure || !documentStructure.documentTypes || !documentType) {
+            return [];
+        }
+
+        const currentDocType = documentStructure.documentTypes[documentType];
+        if (!currentDocType || !currentDocType.classifications) {
+            // Fallback to subfolders if no classifications defined
+            return currentDocType?.subfolders?.map(subfolder => ({
+                value: subfolder.toLowerCase().replace(/\s+/g, '_'),
+                label: subfolder
+            })) || [];
+        }
+
+        return currentDocType.classifications.map(classification => ({
+            value: classification.key || classification.value || classification.toLowerCase().replace(/\s+/g, '_'),
+            label: classification.name || classification.label || classification
+        }));
+    };
+
+    const handleProjectNameChange = (event) => {
+        const value = event.target.value;
+        setProjectName(value);
+
+        // Filter projects based on input
+        if (value.trim()) {
+            const filtered = availableProjects.filter(project =>
+                project.title && project.title.toLowerCase().includes(value.toLowerCase())
+            );
+            setFilteredProjects(filtered);
+            setShowProjectSuggestions(filtered.length > 0);
+        } else {
+            setFilteredProjects(availableProjects);
+            setShowProjectSuggestions(false);
+        }
+    };
+
+    const handleProjectSelect = (projectName) => {
+        setProjectName(projectName);
+        setShowProjectSuggestions(false);
     };
 
     const handleCreateProject = async () => {
@@ -50,7 +156,7 @@ const DocumentUpload = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:3000/api/documents/create-project', {
+            const response = await fetch(`${apiUrl}/api/documents/create-project`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -58,7 +164,9 @@ const DocumentUpload = () => {
                 body: JSON.stringify({
                     projectName: newProjectName,
                     documentType,
-                    description: newProjectDescription
+                    description: newProjectDescription,
+                    dueDate: newProjectDueDate,
+                    owner: newProjectOwner
                 })
             });
 
@@ -66,8 +174,16 @@ const DocumentUpload = () => {
                 setProjectName(newProjectName);
                 setNewProjectName('');
                 setNewProjectDescription('');
+                setNewProjectDueDate('');
+                setNewProjectOwner(mockUsers[0]); // Reset to default owner
                 setShowCreateProject(false);
                 setError(null);
+                // Refresh the projects list
+                loadAvailableProjects();
+                // Notify parent component that a project was created
+                if (onProjectCreated) {
+                    onProjectCreated();
+                }
             } else {
                 const errorData = await response.json();
                 setError(errorData.message || 'Failed to create project');
@@ -90,6 +206,11 @@ const DocumentUpload = () => {
             return;
         }
 
+        if (!documentClassification) {
+            setError('Please select a document classification');
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -98,6 +219,7 @@ const DocumentUpload = () => {
             formData.append('files', file);
         });
         formData.append('documentType', documentType);
+        formData.append('documentClassification', documentClassification);
         if (subfolder) formData.append('subfolder', subfolder);
         if (projectName) formData.append('projectName', projectName);
         formData.append('metadata', JSON.stringify({
@@ -107,7 +229,7 @@ const DocumentUpload = () => {
         }));
 
         try {
-            const response = await fetch('http://localhost:3000/api/documents/upload', {
+            const response = await fetch(`${apiUrl}/api/documents/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -124,6 +246,11 @@ const DocumentUpload = () => {
 
             // Reset form
             document.getElementById('fileInput').value = '';
+
+            // Notify parent component that documents were uploaded (might have created/updated projects)
+            if (onProjectCreated) {
+                onProjectCreated();
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -145,17 +272,24 @@ const DocumentUpload = () => {
     };
 
     return (
-        <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ marginBottom: '20px', color: '#333' }}>📁 Document Management</h2>
+        <div style={{ padding: isModal ? '20px' : '20px', maxWidth: '800px', margin: isModal ? '0' : '0 auto' }}>
+            {!isModal && <h2 style={{ marginBottom: '20px', color: theme?.text || '#333' }}>📁 Document Management</h2>}
 
-            <form onSubmit={handleUpload} style={{ backgroundColor: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+            <form onSubmit={handleUpload} style={{ backgroundColor: theme?.background || '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
                 {/* Document Type Selection */}
                 <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Document Type:</label>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: theme?.text || '#000' }}>Document Type:</label>
                     <select
                         value={documentType}
                         onChange={handleDocumentTypeChange}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{
+                            width: '100%',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: `1px solid ${theme?.border || '#ddd'}`,
+                            backgroundColor: theme?.surface || 'white',
+                            color: theme?.text || '#000'
+                        }}
                     >
                         {documentStructure && documentStructure.documentTypes ?
                             Object.entries(documentStructure.documentTypes).map(([key, type]) => (
@@ -165,7 +299,7 @@ const DocumentUpload = () => {
                         }
                     </select>
                     {getFileTypeInfo() && (
-                        <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+                        <small style={{ color: theme?.textSecondary || '#666', display: 'block', marginTop: '5px' }}>
                             {getFileTypeInfo().description}<br/>
                             Allowed: {getFileTypeInfo().allowedExtensions.join(', ')} |
                             Max size: {Math.round(getFileTypeInfo().maxSize / (1024 * 1024))}MB
@@ -173,13 +307,46 @@ const DocumentUpload = () => {
                     )}
                 </div>
 
+                {/* Document Classification */}
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: theme?.text || '#000' }}>Document Classification:</label>
+                    <select
+                        value={documentClassification}
+                        onChange={(e) => setDocumentClassification(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: `1px solid ${theme?.border || '#ddd'}`,
+                            backgroundColor: theme?.surface || 'white',
+                            color: theme?.text || '#000'
+                        }}
+                        required
+                    >
+                        <option value="">Select document classification</option>
+                        {getDocumentClassificationOptions().map(option => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                    </select>
+                    <small style={{ color: theme?.textSecondary || '#666', display: 'block', marginTop: '5px' }}>
+                        Choose the specific type of document being uploaded
+                    </small>
+                </div>
+
                 {/* Subfolder Selection */}
                 <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Subfolder:</label>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: theme?.text || '#000' }}>Subfolder:</label>
                     <select
                         value={subfolder}
                         onChange={(e) => setSubfolder(e.target.value)}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{
+                            width: '100%',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: `1px solid ${theme?.border || '#ddd'}`,
+                            backgroundColor: theme?.surface || 'white',
+                            color: theme?.text || '#000'
+                        }}
                     >
                         <option value="">Select subfolder (optional)</option>
                         {getAvailableSubfolders().map(folder => (
@@ -190,35 +357,116 @@ const DocumentUpload = () => {
 
                 {/* Project Selection/Creation */}
                 <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Project:</label>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input
-                            type="text"
-                            value={projectName}
-                            onChange={(e) => setProjectName(e.target.value)}
-                            placeholder="Enter existing project name or leave blank"
-                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShowCreateProject(true)}
-                            style={{
-                                padding: '8px 12px',
-                                backgroundColor: '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '12px'
-                            }}
-                        >
-                            New Project
-                        </button>
-                    </div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: theme?.text || '#000' }}>Project:</label>
+                    {selectedProject ? (
+                        /* Read-only project display when project is pre-selected */
+                        <div style={{
+                            padding: '8px',
+                            borderRadius: '4px',
+                            border: `1px solid ${theme?.border || '#ddd'}`,
+                            backgroundColor: theme?.background || '#f8f9fa',
+                            color: theme?.text || '#000',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                <div style={{ fontWeight: 'bold' }}>{selectedProject.title}</div>
+                                {selectedProject.description && (
+                                    <div style={{ fontSize: '12px', color: theme?.textSecondary || '#666' }}>
+                                        {selectedProject.description}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{
+                                fontSize: '12px',
+                                color: theme?.textSecondary || '#666',
+                                fontStyle: 'italic'
+                            }}>
+                                (Auto-selected)
+                            </div>
+                        </div>
+                    ) : (
+                        /* Full project selection when no project is pre-selected */
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={projectName}
+                                    onChange={handleProjectNameChange}
+                                    onFocus={() => setShowProjectSuggestions(filteredProjects.length > 0)}
+                                    onBlur={() => setTimeout(() => setShowProjectSuggestions(false), 150)}
+                                    placeholder="Type to search existing projects or enter new name"
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px',
+                                        borderRadius: '4px',
+                                        border: `1px solid ${theme?.border || '#ddd'}`,
+                                        borderBottomLeftRadius: showProjectSuggestions ? '0' : '4px',
+                                        borderBottomRightRadius: showProjectSuggestions ? '0' : '4px',
+                                        backgroundColor: theme?.surface || 'white',
+                                        color: theme?.text || '#000'
+                                    }}
+                                />
+                                {showProjectSuggestions && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        backgroundColor: theme?.surface || 'white',
+                                        border: `1px solid ${theme?.border || '#ddd'}`,
+                                        borderTop: 'none',
+                                        borderRadius: '0 0 4px 4px',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                        zIndex: 1000,
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }}>
+                                        {filteredProjects.map((project, index) => (
+                                            <div
+                                                key={index}
+                                                onClick={() => handleProjectSelect(project.title || project)}
+                                                style={{
+                                                    padding: '8px 12px',
+                                                    cursor: 'pointer',
+                                                    borderBottom: index < filteredProjects.length - 1 ? `1px solid ${theme?.border || '#eee'}` : 'none',
+                                                    backgroundColor: theme?.surface || 'white',
+                                                    color: theme?.text || '#000'
+                                                }}
+                                                onMouseEnter={(e) => e.target.style.backgroundColor = theme?.background || '#f8f9fa'}
+                                                onMouseLeave={(e) => e.target.style.backgroundColor = theme?.surface || 'white'}
+                                            >
+                                                <div style={{ fontWeight: 'bold' }}>{project.title || project}</div>
+                                                {project.description && (
+                                                    <div style={{ fontSize: '12px', color: theme?.textSecondary || '#666' }}>{project.description}</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowCreateProject(true)}
+                                style={{
+                                    padding: '8px 12px',
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                }}
+                            >
+                                New Project
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {/* Create Project Modal */}
-                {showCreateProject && (
+                {/* Create Project Modal - only show when no project is pre-selected */}
+                {showCreateProject && !selectedProject && (
                     <div style={{
                         marginBottom: '15px',
                         padding: '15px',
@@ -241,6 +489,89 @@ const DocumentUpload = () => {
                             rows="3"
                             style={{ width: '100%', padding: '8px', marginBottom: '10px', borderRadius: '4px', border: '1px solid #ddd', resize: 'vertical' }}
                         />
+                        <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+                                Due Date:
+                            </label>
+                            <input
+                                type="date"
+                                value={newProjectDueDate}
+                                onChange={(e) => setNewProjectDueDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #ddd',
+                                    fontSize: '14px'
+                                }}
+                            />
+                            <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '2px' }}>
+                                {newProjectDueDate ?
+                                    `Due in ${Math.ceil((new Date(newProjectDueDate) - new Date()) / (1000 * 60 * 60 * 24))} days` :
+                                    'Select a due date for this project (optional)'
+                                }
+                            </small>
+                        </div>
+
+                        {/* Owner Selection */}
+                        <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+                                Project Owner:
+                            </label>
+                            <select
+                                value={newProjectOwner ? newProjectOwner.id : ''}
+                                onChange={(e) => {
+                                    const selectedUser = mockUsers.find(user => user.id === parseInt(e.target.value));
+                                    setNewProjectOwner(selectedUser);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #ddd',
+                                    fontSize: '14px',
+                                    marginBottom: '8px'
+                                }}
+                            >
+                                {mockUsers.map(user => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name} ({user.email})
+                                    </option>
+                                ))}
+                            </select>
+                            {newProjectOwner && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px',
+                                    backgroundColor: '#f8f9fa',
+                                    borderRadius: '4px',
+                                    border: '1px solid #dee2e6'
+                                }}>
+                                    <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        backgroundColor: newProjectOwner.color,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontSize: '12px',
+                                        fontWeight: 'bold'
+                                    }}>
+                                        {newProjectOwner.avatar}
+                                    </div>
+                                    <span style={{ fontSize: '14px', fontWeight: '500' }}>{newProjectOwner.name}</span>
+                                    <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                        {newProjectOwner.email}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button
                                 type="button"
@@ -258,7 +589,13 @@ const DocumentUpload = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setShowCreateProject(false)}
+                                onClick={() => {
+                                    setShowCreateProject(false);
+                                    setNewProjectName('');
+                                    setNewProjectDescription('');
+                                    setNewProjectDueDate('');
+                                    setNewProjectOwner(mockUsers[0]); // Reset to default owner
+                                }}
                                 style={{
                                     padding: '8px 16px',
                                     backgroundColor: '#6c757d',
@@ -330,7 +667,7 @@ const DocumentUpload = () => {
                         fontWeight: 'bold'
                     }}
                 >
-                    {loading ? '📤 Uploading...' : `📁 Upload ${selectedFiles.length} file(s) to ${documentType}`}
+                    {loading ? '📤 Uploading...' : `📁 Upload ${selectedFiles.length} file(s)${documentClassification ? ` as ${getDocumentClassificationOptions().find(opt => opt.value === documentClassification)?.label || documentClassification}` : ''}`}
                 </button>
             </form>
 
@@ -374,38 +711,6 @@ const DocumentUpload = () => {
                 </div>
             )}
 
-            {/* Document Structure Info */}
-            {documentStructure && (
-                <div style={{
-                    backgroundColor: '#f8f9fa',
-                    padding: '15px',
-                    borderRadius: '4px',
-                    marginTop: '20px',
-                    border: '1px solid #e9ecef'
-                }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#495057' }}>📋 Available Document Types</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '15px' }}>
-                        {documentStructure && documentStructure.documentTypes ?
-                            Object.entries(documentStructure.documentTypes).map(([key, type]) => (
-                                <div key={key} style={{
-                                    backgroundColor: 'white',
-                                    padding: '10px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #dee2e6'
-                                }}>
-                                    <h4 style={{ margin: '0 0 5px 0', color: '#007bff' }}>{type.name}</h4>
-                                    <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#666' }}>{type.description}</p>
-                                    <small style={{ color: '#6c757d' }}>
-                                        <strong>Subfolders:</strong> {type.subfolders.join(', ')}<br/>
-                                        <strong>File types:</strong> {type.allowedExtensions.join(', ')}
-                                    </small>
-                                </div>
-                            )) :
-                            <div style={{ color: '#666', fontStyle: 'italic' }}>Loading document types...</div>
-                        }
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

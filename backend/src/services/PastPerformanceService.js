@@ -4,17 +4,19 @@
  */
 
 const PastPerformance = require('../models/PastPerformance');
-const DocumentChunkService = require('./DocumentChunkService');
-const TechnologyService = require('./TechnologyService');
-const EmbeddingService = require('./EmbeddingService');
+const PPProcessingService = require('./PPProcessingService');
+const TechnologyExtractionService = require('./TechnologyExtractionService');
+const VectorEmbeddingService = require('./VectorEmbeddingService');
+const PPSearchService = require('./PPSearchService');
 const logger = require('../utils/logger');
 
 class PastPerformanceService {
   constructor() {
     this.pastPerformanceModel = new PastPerformance();
-    this.documentChunkService = new DocumentChunkService();
-    this.technologyService = new TechnologyService();
-    this.embeddingService = new EmbeddingService();
+    this.processingService = new PPProcessingService();
+    this.technologyService = new TechnologyExtractionService();
+    this.embeddingService = new VectorEmbeddingService();
+    this.searchService = new PPSearchService();
   }
 
   /**
@@ -32,7 +34,7 @@ class PastPerformanceService {
 
       // Extract technologies if requested
       if (extractTechnologies) {
-        normalizedData.technologiesUsed = await this.extractTechnologies(
+        normalizedData.technologiesUsed = await this.technologyService.extractTechnologies(
           normalizedData.summary + ' ' + (normalizedData.technicalApproach || '')
         );
       }
@@ -42,7 +44,7 @@ class PastPerformanceService {
 
       // Generate embeddings and chunks if requested
       if (generateEmbeddings) {
-        await this.generatePPEmbeddings(createdPP);
+        await this.embeddingService.generatePPEmbeddings(createdPP);
       }
 
       logger.info(`Past performance created successfully: ${createdPP.id}`);
@@ -80,7 +82,7 @@ class PastPerformanceService {
 
       // Include document chunks if requested
       if (includeChunks) {
-        result.chunks = await this.documentChunkService.getByPastPerformanceId(id);
+        result.chunks = await this.embeddingService.getChunksByPPId(id);
       }
 
       // Include similar past performance if requested
@@ -102,58 +104,9 @@ class PastPerformanceService {
    * @returns {Object} Search results with relevance scoring
    */
   async searchPastPerformance(searchParams) {
-    const {
-      query,
-      filters = {},
-      pagination = {},
-      searchType = 'hybrid', // 'text', 'semantic', 'hybrid'
-      weights = {
-        technology: 0.4,
-        domain: 0.3,
-        customer: 0.2,
-        semantic: 0.1
-      }
-    } = searchParams;
-
     try {
-      let results;
-
-      if (searchType === 'semantic' && query) {
-        // Generate embedding for query
-        const queryEmbedding = await this.embeddingService.generateEmbedding(query);
-        results = await this.semanticSearch(queryEmbedding, filters, pagination.limit || 10);
-      } else {
-        // Text-based search
-        const searchFilters = { ...filters };
-        if (query) {
-          searchFilters.search = query;
-        }
-
-        const searchResults = await this.pastPerformanceModel.getAll(searchFilters, pagination);
-        results = searchResults.records.map(record => ({
-          ...record,
-          relevanceScore: this.calculateRelevanceScore(record, searchParams, weights),
-          matchReasons: this.generateMatchReasons(record, searchParams)
-        }));
-
-        // Sort by relevance score
-        results.sort((a, b) => b.relevanceScore - a.relevanceScore);
-      }
-
-      // Group results by relevance tiers
-      const groupedResults = this.groupResultsByRelevance(results);
-
-      return {
-        results,
-        groupedResults,
-        searchMetadata: {
-          query,
-          searchType,
-          totalResults: results.length,
-          weights,
-          executedAt: new Date().toISOString()
-        }
-      };
+      // Use the dedicated search service
+      return await this.searchService.searchPastPerformance(searchParams);
     } catch (error) {
       logger.error(`Error searching past performance: ${error.message}`);
       throw error;
@@ -180,7 +133,7 @@ class PastPerformanceService {
         if (existingPP) {
           const textContent = (updates.summary || existingPP.summary) + ' ' +
                               (updates.technicalApproach || existingPP.technicalApproach || '');
-          updates.technologiesUsed = await this.extractTechnologies(textContent);
+          updates.technologiesUsed = await this.technologyService.extractTechnologies(textContent);
         }
       }
 
@@ -192,7 +145,7 @@ class PastPerformanceService {
 
       // Regenerate embeddings if content changed or explicitly requested
       if (contentChanged || regenerateEmbeddings) {
-        await this.generatePPEmbeddings(updatedPP);
+        await this.embeddingService.generatePPEmbeddings(updatedPP);
       }
 
       logger.info(`Past performance updated successfully: ${id}`);
@@ -309,163 +262,8 @@ class PastPerformanceService {
     return normalized;
   }
 
-  /**
-   * Extract technologies from text content
-   * @private
-   */
-  async extractTechnologies(textContent) {
-    try {
-      // This would use AI to extract technologies
-      // For now, return simple keyword matching
-      const knownTechnologies = await this.technologyService.getAllTechnologies();
-      const extractedTechnologies = [];
 
-      const normalizedText = textContent.toLowerCase();
 
-      knownTechnologies.forEach(tech => {
-        const techName = tech.technology_name.toLowerCase();
-        const aliases = tech.aliases || [];
-
-        // Check main name and aliases
-        const searchTerms = [techName, ...aliases.map(alias => alias.toLowerCase())];
-
-        for (const term of searchTerms) {
-          if (normalizedText.includes(term)) {
-            extractedTechnologies.push(tech.technology_name);
-            break;
-          }
-        }
-      });
-
-      return [...new Set(extractedTechnologies)]; // Remove duplicates
-    } catch (error) {
-      logger.warn(`Error extracting technologies: ${error.message}`);
-      return [];
-    }
-  }
-
-  /**
-   * Generate embeddings for past performance
-   * @private
-   */
-  async generatePPEmbeddings(pastPerformance) {
-    try {
-      // Generate project-level chunk
-      const projectChunk = {
-        pastPerformanceId: pastPerformance.id,
-        chunkType: 'pp_project',
-        chunkIndex: 0,
-        content: pastPerformance.summary,
-        sectionTitle: 'Project Summary',
-        metadata: { source: 'summary' }
-      };
-
-      await this.documentChunkService.createChunk(projectChunk);
-
-      // Generate capability-level chunk if technical approach exists
-      if (pastPerformance.technicalApproach) {
-        const capabilityChunk = {
-          pastPerformanceId: pastPerformance.id,
-          chunkType: 'pp_capability',
-          chunkIndex: 1,
-          content: pastPerformance.technicalApproach,
-          sectionTitle: 'Technical Approach',
-          metadata: { source: 'technical_approach' }
-        };
-
-        await this.documentChunkService.createChunk(capabilityChunk);
-      }
-
-      logger.debug(`Generated embeddings for past performance: ${pastPerformance.id}`);
-    } catch (error) {
-      logger.error(`Error generating embeddings: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Calculate relevance score for search results
-   * @private
-   */
-  calculateRelevanceScore(record, searchParams, weights) {
-    let score = 0;
-
-    // Technology match scoring
-    if (searchParams.requiredTechnologies?.length > 0) {
-      const matchedTech = record.technologiesUsed.filter(tech =>
-        searchParams.requiredTechnologies.includes(tech)
-      );
-      const techScore = matchedTech.length / searchParams.requiredTechnologies.length;
-      score += techScore * weights.technology;
-    }
-
-    // Domain match scoring
-    if (searchParams.domainAreas?.length > 0) {
-      const matchedDomains = record.domainAreas.filter(domain =>
-        searchParams.domainAreas.includes(domain)
-      );
-      const domainScore = matchedDomains.length / searchParams.domainAreas.length;
-      score += domainScore * weights.domain;
-    }
-
-    // Customer type match
-    if (searchParams.filters?.customerType && record.customerType === searchParams.filters.customerType) {
-      score += weights.customer;
-    }
-
-    // Base relevance for any record
-    score += 0.1;
-
-    return Math.min(score, 1.0);
-  }
-
-  /**
-   * Generate match reasons for search results
-   * @private
-   */
-  generateMatchReasons(record, searchParams) {
-    const reasons = [];
-
-    if (searchParams.requiredTechnologies?.length > 0) {
-      const matchedTech = record.technologiesUsed.filter(tech =>
-        searchParams.requiredTechnologies.includes(tech)
-      );
-      if (matchedTech.length > 0) {
-        reasons.push(`Technology match: ${matchedTech.join(', ')}`);
-      }
-    }
-
-    if (searchParams.domainAreas?.length > 0) {
-      const matchedDomains = record.domainAreas.filter(domain =>
-        searchParams.domainAreas.includes(domain)
-      );
-      if (matchedDomains.length > 0) {
-        reasons.push(`Domain match: ${matchedDomains.join(', ')}`);
-      }
-    }
-
-    if (searchParams.filters?.customerType && record.customerType === searchParams.filters.customerType) {
-      reasons.push(`Customer type: ${record.customerType}`);
-    }
-
-    if (searchParams.query) {
-      reasons.push('Text content match');
-    }
-
-    return reasons;
-  }
-
-  /**
-   * Group results by relevance tiers
-   * @private
-   */
-  groupResultsByRelevance(results) {
-    return {
-      highRelevance: results.filter(r => r.relevanceScore >= 0.8),
-      mediumRelevance: results.filter(r => r.relevanceScore >= 0.6 && r.relevanceScore < 0.8),
-      lowRelevance: results.filter(r => r.relevanceScore < 0.6)
-    };
-  }
 
   /**
    * Find similar past performance records
@@ -473,73 +271,13 @@ class PastPerformanceService {
    */
   async findSimilarPastPerformance(id, limit = 5) {
     try {
-      const targetPP = await this.pastPerformanceModel.getById(id);
-      if (!targetPP) {
-        return [];
-      }
-
-      // Simple similarity based on technologies and domains
-      const similarPP = await this.pastPerformanceModel.getAll({
-        technologies: targetPP.technologiesUsed.slice(0, 3), // Top 3 technologies
-        domains: targetPP.domainAreas.slice(0, 2) // Top 2 domains
-      }, { limit: limit + 1, offset: 0 });
-
-      // Filter out the target record and return similarity scores
-      return similarPP.records
-        .filter(pp => pp.id !== id)
-        .slice(0, limit)
-        .map(pp => ({
-          ...pp,
-          similarityScore: this.calculateSimilarityScore(targetPP, pp)
-        }));
+      return await this.searchService.findSimilar(id, limit);
     } catch (error) {
       logger.error(`Error finding similar past performance: ${error.message}`);
       return [];
     }
   }
 
-  /**
-   * Calculate similarity score between two past performance records
-   * @private
-   */
-  calculateSimilarityScore(pp1, pp2) {
-    let score = 0;
-    let factors = 0;
-
-    // Technology similarity
-    const commonTech = pp1.technologiesUsed.filter(tech =>
-      pp2.technologiesUsed.includes(tech)
-    );
-    if (pp1.technologiesUsed.length > 0 || pp2.technologiesUsed.length > 0) {
-      const techUnion = new Set([...pp1.technologiesUsed, ...pp2.technologiesUsed]);
-      score += commonTech.length / techUnion.size;
-      factors++;
-    }
-
-    // Domain similarity
-    const commonDomains = pp1.domainAreas.filter(domain =>
-      pp2.domainAreas.includes(domain)
-    );
-    if (pp1.domainAreas.length > 0 || pp2.domainAreas.length > 0) {
-      const domainUnion = new Set([...pp1.domainAreas, ...pp2.domainAreas]);
-      score += commonDomains.length / domainUnion.size;
-      factors++;
-    }
-
-    // Customer type similarity
-    if (pp1.customerType === pp2.customerType) {
-      score += 0.2;
-    }
-    factors++;
-
-    // Work type similarity
-    if (pp1.workType === pp2.workType) {
-      score += 0.1;
-    }
-    factors++;
-
-    return factors > 0 ? score / factors : 0;
-  }
 
   /**
    * Get technology trends from past performance data
@@ -568,21 +306,6 @@ class PastPerformanceService {
     };
   }
 
-  /**
-   * Semantic search using vector similarity
-   * @private
-   */
-  async semanticSearch(queryEmbedding, filters, limit) {
-    // This would use actual vector similarity search
-    // For now, return mock results
-    const textResults = await this.pastPerformanceModel.getAll(filters, { limit, offset: 0 });
-
-    return textResults.records.map(record => ({
-      ...record,
-      similarityScore: 0.7 + (Math.random() * 0.3), // Mock similarity score
-      relevanceReason: 'Semantic similarity (mock implementation)'
-    }));
-  }
 }
 
 module.exports = PastPerformanceService;

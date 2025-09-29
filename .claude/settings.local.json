@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)",
+      "Bash(PORT=3003 npm start)",
+      "Bash(PORT=3004 npm start)",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(winpty docker exec -it gov-proposal-ai-database-1 psql -U user -d dbname -c \"\\d documents\")",
+      "Bash(docker-compose up:*)",
+      "Bash(cat:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker cp:*)",
+      "Bash(docker-compose:*)",
+      "Bash(winpty docker exec:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -203,29 +203,76 @@ router.post('/generate-report', sanitizeInput, asyncHandler(async (req, res) => 
 
 /**
  * @route GET /api/compliance/frameworks
- * @desc Get supported compliance frameworks
+ * @desc Get supported compliance frameworks organized by category
  * @access Public
  */
 router.get('/frameworks', asyncHandler(async (req, res) => {
-  const frameworks = complianceService.frameworks;
+  try {
+    const frameworksByCategory = await complianceService.getFrameworksByCategory();
+    const legacyFrameworks = complianceService.frameworks; // For backward compatibility
 
-  res.json({
-    success: true,
-    data: {
-      frameworks,
-      count: Object.keys(frameworks).length,
-      supported: [
-        'Federal Acquisition Regulation (FAR)',
-        'NIST Cybersecurity Framework',
-        'FISMA Security Requirements',
-        'CMMC Cybersecurity Standards',
-        'Section 508 Accessibility',
-        'SOC 2 Controls',
-        'ITAR/EAR Export Controls',
-        'FIPS 140 Standards'
-      ]
-    }
-  });
+    res.json({
+      success: true,
+      data: {
+        frameworksByCategory,
+        frameworks: legacyFrameworks, // Legacy format
+        count: Object.keys(legacyFrameworks).length,
+        supported: [
+          'Federal Acquisition Regulation (FAR)',
+          'NIST Cybersecurity Framework',
+          'FISMA Security Requirements',
+          'CMMC Cybersecurity Standards',
+          'Section 508 Accessibility',
+          'SOC 2 Controls',
+          'ITAR/EAR Export Controls',
+          'FIPS 140 Standards'
+        ]
+      }
+    });
+  } catch (error) {
+    logger.error('Error fetching compliance frameworks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch compliance frameworks'
+    });
+  }
+}));
+
+/**
+ * @route GET /api/compliance/frameworks/agency/:agencyId
+ * @desc Get compliance frameworks for specific agency
+ * @access Public
+ */
+router.get('/frameworks/agency/:agencyId', asyncHandler(async (req, res) => {
+  const { agencyId } = req.params;
+  const { departmentId } = req.query;
+
+  if (!agencyId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Agency ID is required'
+    });
+  }
+
+  try {
+    const frameworks = await complianceService.getFrameworksForAgency(agencyId, departmentId);
+
+    res.json({
+      success: true,
+      data: {
+        agencyId,
+        departmentId,
+        frameworks,
+        count: frameworks.length
+      }
+    });
+  } catch (error) {
+    logger.error(`Error fetching frameworks for agency ${agencyId}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch agency-specific frameworks'
+    });
+  }
 }));
 
 /**
@@ -362,6 +409,86 @@ router.post('/quick-scan', sanitizeInput, asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: quickResults
+  });
+}));
+
+/**
+ * @route POST /api/compliance/analyze-cross-references
+ * @desc Analyze cross-references and relationships between requirements
+ * @access Public
+ */
+router.post('/analyze-cross-references', sanitizeInput, asyncHandler(async (req, res) => {
+  const { requirements } = req.body;
+
+  if (!requirements || !Array.isArray(requirements) || requirements.length < 2) {
+    return res.status(400).json({
+      success: false,
+      message: 'At least two requirements are required for cross-reference analysis'
+    });
+  }
+
+  logger.info(`Analyzing cross-references for ${requirements.length} requirements`);
+
+  const result = await complianceService.crossReferenceService.detectCrossReferences(requirements);
+
+  res.json({
+    success: true,
+    data: result
+  });
+}));
+
+/**
+ * @route POST /api/compliance/analyze-cascading
+ * @desc Analyze cascading compliance impacts across requirement chains
+ * @access Public
+ */
+router.post('/analyze-cascading', sanitizeInput, asyncHandler(async (req, res) => {
+  const { requirements, crossReferences } = req.body;
+
+  if (!requirements || !Array.isArray(requirements)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Requirements array is required'
+    });
+  }
+
+  logger.info(`Analyzing cascading impacts for ${requirements.length} requirements`);
+
+  const result = await complianceService.analyzeCascadingCompliance(requirements, crossReferences);
+
+  res.json({
+    success: true,
+    data: result
+  });
+}));
+
+/**
+ * @route POST /api/compliance/relationship-insights
+ * @desc Generate insights from requirement relationships
+ * @access Public
+ */
+router.post('/relationship-insights', sanitizeInput, asyncHandler(async (req, res) => {
+  const { requirements, crossReferences } = req.body;
+
+  if (!requirements || !Array.isArray(requirements)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Requirements array is required'
+    });
+  }
+
+  logger.info(`Generating relationship insights for ${requirements.length} requirements`);
+
+  const insights = complianceService.generateRelationshipInsights(requirements, crossReferences);
+
+  res.json({
+    success: true,
+    data: {
+      insights,
+      totalRequirements: requirements.length,
+      hasRelationships: crossReferences?.crossReferences?.length > 0,
+      generatedAt: new Date().toISOString()
+    }
   });
 }));
 

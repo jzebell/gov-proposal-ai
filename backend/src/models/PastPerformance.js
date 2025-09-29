@@ -1,16 +1,23 @@
 /**
- * Past Performance Model
+ * Past Performance Model - Updated for Epic 2 RAG System
  * Handles CRUD operations and business logic for past performance records
  */
 
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
+// Use the standardized pool configuration
+const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+});
+
 class PastPerformance {
-  constructor(pool) {
-    this.pool = pool || new Pool({
-      connectionString: process.env.DATABASE_URL
-    });
+  constructor() {
+    // Updated to use static methods like other Epic 2 models
   }
 
   /**
@@ -75,7 +82,7 @@ class PastPerformance {
     ];
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await pool.query(query, values);
       logger.info(`Created past performance record: ${projectName}`);
       return this.formatPastPerformance(result.rows[0]);
     } catch (error) {
@@ -93,7 +100,7 @@ class PastPerformance {
     const query = 'SELECT * FROM past_performance WHERE id = $1';
 
     try {
-      const result = await this.pool.query(query, [id]);
+      const result = await pool.query(query, [id]);
       return result.rows.length > 0 ? this.formatPastPerformance(result.rows[0]) : null;
     } catch (error) {
       logger.error(`Error getting past performance by ID: ${error.message}`);
@@ -200,8 +207,8 @@ class PastPerformance {
 
     try {
       const [countResult, dataResult] = await Promise.all([
-        this.pool.query(countQuery, values.slice(0, -2)),
-        this.pool.query(dataQuery, values)
+        pool.query(countQuery, values.slice(0, -2)),
+        pool.query(dataQuery, values)
       ]);
 
       const total = parseInt(countResult.rows[0].count);
@@ -280,7 +287,7 @@ class PastPerformance {
     `;
 
     try {
-      const result = await this.pool.query(query, values);
+      const result = await pool.query(query, values);
       if (result.rows.length === 0) {
         return null;
       }
@@ -302,7 +309,7 @@ class PastPerformance {
     const query = 'DELETE FROM past_performance WHERE id = $1 RETURNING id';
 
     try {
-      const result = await this.pool.query(query, [id]);
+      const result = await pool.query(query, [id]);
       const deleted = result.rows.length > 0;
 
       if (deleted) {
@@ -387,7 +394,7 @@ class PastPerformance {
 
     try {
       const results = await Promise.all(
-        Object.values(queries).map(query => this.pool.query(query))
+        Object.values(queries).map(query => pool.query(query))
       );
 
       return {

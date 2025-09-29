@@ -1,15 +1,35 @@
 import React, { useState, useEffect } from 'react';
+import useModelWarmup from '../hooks/useModelWarmup';
+import AIStatusIndicator from './AIStatusIndicator';
 
 const AIWritingAssistant = () => {
   const [selectedSection, setSelectedSection] = useState('technical-approach');
+  const [selectedModel, setSelectedModel] = useState('');
   const [prompt, setPrompt] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState({});
   const [models, setModels] = useState([]);
   const [aiHealth, setAiHealth] = useState(null);
+  const [usingLayeredPrompt, setUsingLayeredPrompt] = useState(false);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+  // Initialize model warm-up hook
+  const {
+    getSystemStatus,
+    triggerModelSwitchWarmup,
+    isModelWarm,
+    isModelWarming,
+    warmModelCount,
+    isSystemWarming
+  } = useModelWarmup({
+    apiUrl,
+    autoWarmup: true,
+    enableSmartWarmup: true,
+    warmupOnMount: true,
+    warmupOnModelSwitch: true
+  });
 
   useEffect(() => {
     loadTemplates();
@@ -49,9 +69,25 @@ const AIWritingAssistant = () => {
       const data = await response.json();
       if (data.success) {
         setModels(data.data.models);
+        // Set default model if none selected
+        if (!selectedModel && data.data.models.length > 0) {
+          const defaultModel = data.data.models.find(m => m.isRecommended) || data.data.models[0];
+          setSelectedModel(defaultModel.name);
+        }
       }
     } catch (error) {
       console.error('Error loading models:', error);
+    }
+  };
+
+  const handleModelChange = async (newModel) => {
+    if (newModel !== selectedModel) {
+      setSelectedModel(newModel);
+      // Trigger warmup for the new model
+      await triggerModelSwitchWarmup(newModel, {
+        userPreferences: [newModel],
+        recentlyUsed: [newModel]
+      });
     }
   };
 
@@ -65,15 +101,42 @@ const AIWritingAssistant = () => {
     setGeneratedContent('Generating content with AI...');
 
     try {
+      // First, build the layered prompt using the global prompt configuration system
+      const promptResponse = await fetch(`${apiUrl}/api/global-prompts/build`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_prompt: prompt,
+          section_type: selectedSection,
+          document_type: 'proposal',
+          persona_id: null // Could be made configurable later
+        })
+      });
+
+      let finalPrompt = prompt; // Fallback to original prompt
+      if (promptResponse.ok) {
+        const promptData = await promptResponse.json();
+        if (promptData.success) {
+          finalPrompt = promptData.data.final_prompt;
+          setUsingLayeredPrompt(true);
+          console.log('Using layered prompt:', promptData);
+        }
+      } else {
+        setUsingLayeredPrompt(false);
+      }
+
       const response = await fetch(`${apiUrl}/api/ai-writing/generate-section`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: prompt,
+          prompt: finalPrompt,
           sectionType: selectedSection,
           requirements: {
+            model: selectedModel,
             length: '500-800 words',
             evaluationCriteria: 'Technical merit, understanding of requirements, past performance'
           }
@@ -103,6 +166,34 @@ const AIWritingAssistant = () => {
     setLoading(true);
 
     try {
+      // Build layered prompt for content improvement
+      const improvementPrompt = `Improve this content for clarity, persuasiveness, and compliance: ${generatedContent}`;
+
+      const promptResponse = await fetch(`${apiUrl}/api/global-prompts/build`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_prompt: improvementPrompt,
+          section_type: selectedSection,
+          document_type: 'proposal',
+          persona_id: null,
+          context_overrides: {
+            task_type: 'improvement'
+          }
+        })
+      });
+
+      let finalImprovementPrompt = improvementPrompt;
+      if (promptResponse.ok) {
+        const promptData = await promptResponse.json();
+        if (promptData.success) {
+          finalImprovementPrompt = promptData.data.final_prompt;
+          console.log('Using layered improvement prompt:', promptData);
+        }
+      }
+
       const response = await fetch(`${apiUrl}/api/ai-writing/improve-content`, {
         method: 'POST',
         headers: {
@@ -110,7 +201,8 @@ const AIWritingAssistant = () => {
         },
         body: JSON.stringify({
           content: generatedContent,
-          improvementType: 'general'
+          improvementType: 'general',
+          layeredPrompt: finalImprovementPrompt
         })
       });
 
@@ -139,27 +231,58 @@ const AIWritingAssistant = () => {
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h2>🤖 Epic 3: AI Writing Assistant</h2>
 
-      {/* AI Health Status */}
-      <div style={{
-        padding: '10px',
-        marginBottom: '20px',
-        borderRadius: '5px',
-        backgroundColor: aiHealth?.available ? '#d4edda' : '#f8d7da',
-        border: `1px solid ${aiHealth?.available ? '#c3e6cb' : '#f5c6cb'}`
-      }}>
-        <strong>AI Service Status:</strong> {' '}
-        {aiHealth?.available ? (
-          <span style={{ color: '#155724' }}>✅ Connected to {aiHealth.service}</span>
-        ) : (
-          <span style={{ color: '#721c24' }}>❌ Ollama not available</span>
-        )}
-        {models.length > 0 && (
-          <span style={{ marginLeft: '15px', fontSize: '12px', color: '#666' }}>
-            Models: {models.slice(0, 3).map(m => m.name).join(', ')}
-            {models.length > 3 && ` +${models.length - 3} more`}
-          </span>
-        )}
-      </div>
+      {/* AI Status and Model Selection */}
+      <AIStatusIndicator
+        systemStatus={getSystemStatus()}
+        aiHealth={aiHealth}
+        models={models}
+        showDetails={true}
+      />
+
+      {/* Model Selection */}
+      {models.length > 0 && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            Select AI Model:
+          </label>
+          <select
+            value={selectedModel}
+            onChange={(e) => handleModelChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ddd',
+              borderRadius: '5px',
+              fontSize: '14px',
+              backgroundColor: 'white'
+            }}
+          >
+            {models.map(model => (
+              <option key={model.id} value={model.name}>
+                {model.name}
+                {model.isRecommended && ' (Recommended)'}
+                {isModelWarm(model.name) && ' 🔥'}
+                {isModelWarming(model.name) && ' 🔄'}
+              </option>
+            ))}
+          </select>
+
+          {selectedModel && (
+            <div style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+              {(() => {
+                const model = models.find(m => m.name === selectedModel);
+                return model ? model.description : 'Model information not available';
+              })()}
+              {isModelWarm(selectedModel) && (
+                <span style={{ color: '#28a745', fontWeight: 'bold' }}> • Ready</span>
+              )}
+              {isModelWarming(selectedModel) && (
+                <span style={{ color: '#fd7e14', fontWeight: 'bold' }}> • Warming up...</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Section Type Selector */}
       <div style={{ marginBottom: '20px' }}>
@@ -221,6 +344,7 @@ const AIWritingAssistant = () => {
               }}
             >
               {loading ? '🔄 Generating...' : '🚀 Generate Content'}
+              {usingLayeredPrompt && !loading && ' ✨'}
             </button>
 
             <button
@@ -251,6 +375,23 @@ const AIWritingAssistant = () => {
               <strong>Template: {templates[selectedSection].name}</strong>
               <div style={{ fontSize: '12px', marginTop: '5px' }}>
                 Typical sections: {templates[selectedSection].sections?.join(', ')}
+              </div>
+            </div>
+          )}
+
+          {/* Layered Prompt Status */}
+          {usingLayeredPrompt && (
+            <div style={{
+              marginTop: '15px',
+              padding: '10px',
+              backgroundColor: '#d4edda',
+              border: '1px solid #c3e6cb',
+              borderRadius: '5px',
+              color: '#155724'
+            }}>
+              <strong>✨ Enhanced Prompting Active</strong>
+              <div style={{ fontSize: '12px', marginTop: '5px' }}>
+                Your prompt is being enhanced with global writing guidelines, compliance rules, and section-specific guidance for better results.
               </div>
             </div>
           )}
@@ -349,6 +490,7 @@ const AIWritingAssistant = () => {
         <ul>
           <li><strong>Section Generation</strong> - AI-powered writing for all proposal sections</li>
           <li><strong>Content Improvement</strong> - Enhance clarity, persuasiveness, and compliance</li>
+          <li><strong>4-Layer Prompt Enhancement ✨</strong> - Global rules + context guidance + templates</li>
           <li><strong>Template Library</strong> - Pre-built prompts for common sections</li>
           <li><strong>Multi-Model Support</strong> - Qwen 2.5 14B/32B, Mistral, and more</li>
           <li><strong>Solicitation Analysis</strong> - Extract requirements from RFPs</li>

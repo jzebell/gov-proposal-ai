@@ -375,7 +375,7 @@ router.get('/analytics/overview', asyncHandler(async (req, res) => {
  * @access Private
  */
 router.get('/analytics/technologies', asyncHandler(async (req, res) => {
-  const technologyService = new (require('../services/TechnologyService'))();
+  const technologyService = new (require('../services/TechnologyExtractionService'))();
   const analytics = await technologyService.getUsageStatistics();
 
   res.json({

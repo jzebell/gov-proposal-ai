@@ -18,7 +18,7 @@ const ApiExplorer = () => {
     setResponse('Loading...');
 
     try {
-      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
       const response = await fetch(`${baseUrl}${endpoint.url}`);
       const data = await response.text();
 
