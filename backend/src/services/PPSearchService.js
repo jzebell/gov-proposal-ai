@@ -1,7 +1,6 @@
 const PPEmbedding = require('../models/PPEmbedding');
 const Technology = require('../models/Technology');
 const VectorEmbeddingService = require('./VectorEmbeddingService');
-const PastPerformanceService = require('./PastPerformanceService');
 const logger = require('../utils/logger');
 
 /**
@@ -11,7 +10,7 @@ const logger = require('../utils/logger');
 class PPSearchService {
     constructor() {
         this.vectorService = new VectorEmbeddingService();
-        this.ppService = new PastPerformanceService();
+        this.ppService = null; // Lazy initialization to avoid circular dependency
 
         // Default search weights (user-configurable)
         this.defaultWeights = {
@@ -23,6 +22,15 @@ class PPSearchService {
         };
 
         this.searchModes = ['project_context', 'free_text', 'research'];
+    }
+
+    // Lazy initialization of PastPerformanceService to avoid circular dependency
+    _getPPService() {
+        if (!this.ppService) {
+            const PastPerformanceService = require('./PastPerformanceService');
+            this.ppService = new PastPerformanceService();
+        }
+        return this.ppService;
     }
 
     /**
@@ -110,7 +118,7 @@ class PPSearchService {
                 ppFilters: this.buildPPFilters(filters, searchWeights)
             });
 
-            const keywordResults = await this.ppService.searchByText(query, {
+            const keywordResults = await this._getPPService().searchByText(query, {
                 limit: limit * 2
             });
 
@@ -187,7 +195,7 @@ class PPSearchService {
             // Format for research display
             const researchResults = await Promise.all(
                 topResults.map(async (group) => {
-                    const ppDetails = await this.ppService.getById(group.ppId, {
+                    const ppDetails = await this._getPPService().getById(group.ppId, {
                         includeDocuments: false,
                         includeTechnologies: true,
                         includeUnifiedContent: returnSummaryOnly

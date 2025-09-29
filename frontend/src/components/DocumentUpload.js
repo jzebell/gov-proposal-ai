@@ -100,7 +100,12 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
     const handleDocumentTypeChange = (event) => {
         setDocumentType(event.target.value);
         setSubfolder(''); // Reset subfolder when type changes
-        setProjectName('');
+
+        // Only clear project name if no project is pre-selected
+        if (!selectedProject) {
+            setProjectName('');
+        }
+
         setShowProjectSuggestions(false);
         // Reset document classification when storage type changes
         setDocumentClassification('');

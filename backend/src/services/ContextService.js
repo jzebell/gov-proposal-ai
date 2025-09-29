@@ -92,10 +92,18 @@ class ContextService {
       logger.info(`Building context for ${projectName}/${documentType} (attempt ${retryCount + 1})`);
 
       // Mark as building
-      await this.projectContext.markBuilding(projectName, documentType);
+      try {
+        await this.projectContext.markBuilding(projectName, documentType);
+        logger.info(`Marked as building successfully`);
+      } catch (markError) {
+        logger.error(`Error marking as building: ${markError.message}`);
+        throw markError;
+      }
 
       // Get all active documents for the project
+      logger.info(`About to call getProjectDocuments for ${projectName}/${documentType}`);
       const documents = await this.getProjectDocuments(projectName, documentType);
+      logger.info(`getProjectDocuments returned ${documents?.length || 0} documents`);
 
       if (documents.length === 0) {
         logger.warn(`No documents found for ${projectName}/${documentType}`);
@@ -134,16 +142,22 @@ class ContextService {
    */
   async getProjectDocuments(projectName, documentType) {
     try {
+      logger.info(`Searching for documents with projectName="${projectName}", status="active"`);
+
+      // Get all documents for the project regardless of category
+      // This allows projects to contain documents of different types (solicitations, references, etc.)
       const results = await this.documentManager.documentModel.list({
-        category: documentType.toLowerCase(),
         projectName: projectName,
         status: 'active' // Only active documents
       }, { limit: 1000 });
 
+      logger.info(`Found ${results.documents?.length || 0} documents for project "${projectName}"`);
+
       // Apply basic priority rules
-      return this.prioritizeDocuments(results.documents);
+      return this.prioritizeDocuments(results.documents || []);
     } catch (error) {
       logger.error(`Error getting project documents: ${error.message}`);
+      logger.error(`Error stack: ${error.stack}`);
       return [];
     }
   }

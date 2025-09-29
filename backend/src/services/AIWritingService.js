@@ -24,14 +24,51 @@ class AIWritingService {
       logger.info(`Generating content with persona: ${requirements.personaId || 'default'}`);
 
       // Get project context if available
-      const projectName = requirements.projectName || 'AI Writing Test Project';
-      const documentType = requirements.documentType || 'solicitations';
+      const projectName = requirements.projectContext?.title || requirements.projectName || 'AI Writing Test Project';
+      const documentType = requirements.projectContext?.documentType || requirements.documentType || 'solicitations';
 
       let contextData = null;
       try {
+        logger.info(`Looking for context: project="${projectName}", docType="${documentType}"`);
         const context = await this.contextService.getProjectContext(projectName, documentType);
         if (context && context.contextData) {
           contextData = context;
+          logger.info(`Found context with ${contextData.documentCount || 0} documents`);
+        } else if (context && context.status === 'building') {
+          logger.info(`Context is building for ${projectName}/${documentType}`);
+          // For now, fall back to simple document loading while context builds
+          const documentManager = require('./DocumentManagerService');
+          const docManager = new documentManager();
+          const documents = await docManager.documentModel.list({
+            projectName: projectName,
+            status: 'active'
+          }, { limit: 3 });
+
+          if (documents.documents && documents.documents.length > 0) {
+            const documentContents = [];
+            for (const doc of documents.documents) {
+              try {
+                const content = await docManager.extractDocumentText(doc.path);
+                if (content && content.trim()) {
+                  documentContents.push({
+                    filename: doc.originalName || doc.filename,
+                    content: content.substring(0, 4000) // Smaller limit as fallback
+                  });
+                }
+              } catch (docError) {
+                logger.warn(`Could not extract content from ${doc.filename}: ${docError.message}`);
+              }
+            }
+            if (documentContents.length > 0) {
+              contextData = {
+                documents: documentContents,
+                documentCount: documentContents.length
+              };
+              logger.info(`Using fallback context with ${documentContents.length} documents`);
+            }
+          }
+        } else {
+          logger.info(`No context found for ${projectName}/${documentType}`);
         }
       } catch (error) {
         logger.warn(`Could not load context: ${error.message}`);
@@ -292,42 +329,58 @@ Keep it concise but comprehensive (2-3 paragraphs).
    * Build context string from processed context data
    */
   buildContextString(contextData) {
-    if (!contextData || !contextData.contextData || !contextData.contextData.chunks) {
+    // Handle new simple document structure
+    if (!contextData || !contextData.documents || contextData.documents.length === 0) {
       return 'No documents available.';
-    }
-
-    const chunks = contextData.contextData.chunks;
-    if (chunks.length === 0) {
-      return 'No document content available.';
     }
 
     let context = 'DOCUMENT CONTEXT:\n\n';
 
-    // Group chunks by document for better organization
-    const chunksByDocument = {};
-    chunks.forEach(chunk => {
-      const docName = chunk.documentName || 'Unknown Document';
-      if (!chunksByDocument[docName]) {
-        chunksByDocument[docName] = [];
+    // Build context from document contents
+    contextData.documents.forEach((doc, index) => {
+      context += `[Source: ${doc.filename}]\n`;
+      context += `${doc.content}\n\n`;
+
+      if (index < contextData.documents.length - 1) {
+        context += '---\n\n';
       }
-      chunksByDocument[docName].push(chunk);
     });
 
-    // Build context string with proper citations
-    Object.keys(chunksByDocument).forEach(docName => {
-      context += `[Source: ${docName}]\n`;
+    // Legacy support for old chunk-based structure
+    if (!contextData.documents && contextData.contextData && contextData.contextData.chunks) {
+      const chunks = contextData.contextData.chunks;
+      if (chunks.length === 0) {
+        return 'No document content available.';
+      }
 
-      chunksByDocument[docName].forEach((chunk, index) => {
-        // Add section information if available
-        const sectionInfo = chunk.sectionType && chunk.sectionType !== 'general'
-          ? ` (${chunk.sectionType.replace('_', ' ')})`
-          : '';
+      context = 'DOCUMENT CONTEXT:\n\n';
 
-        context += `\nSection ${index + 1}${sectionInfo}:\n${chunk.content}\n`;
+      // Group chunks by document for better organization
+      const chunksByDocument = {};
+      chunks.forEach(chunk => {
+        const docName = chunk.documentName || 'Unknown Document';
+        if (!chunksByDocument[docName]) {
+          chunksByDocument[docName] = [];
+        }
+        chunksByDocument[docName].push(chunk);
       });
 
-      context += '\n---\n\n';
-    });
+      // Build context string with proper citations
+      Object.keys(chunksByDocument).forEach(docName => {
+        context += `[Source: ${docName}]\n`;
+
+        chunksByDocument[docName].forEach((chunk, index) => {
+          // Add section information if available
+          const sectionInfo = chunk.sectionType && chunk.sectionType !== 'general'
+            ? ` (${chunk.sectionType.replace('_', ' ')})`
+          : '';
+
+          context += `\nSection ${index + 1}${sectionInfo}:\n${chunk.content}\n`;
+        });
+
+        context += '\n---\n\n';
+      });
+    }
 
     return context;
   }

@@ -1578,15 +1578,20 @@ const Layout = () => {
         overflow: 'hidden'
       }}>
       {/* Sidebar */}
-      <div style={{
-        width: sidebarCollapsed ? (isMobile ? '0' : '60px') : '260px',
-        backgroundColor: currentTheme.sidebar,
-        borderRight: `1px solid ${currentTheme.border}`,
-        transition: 'width 0.3s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden'
-      }}>
+      <div
+        onDoubleClick={handleSidebarToggle}
+        style={{
+          width: sidebarCollapsed ? (isMobile ? '0' : '60px') : '260px',
+          backgroundColor: currentTheme.sidebar,
+          borderRight: `1px solid ${currentTheme.border}`,
+          transition: 'width 0.3s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          cursor: 'pointer'
+        }}
+        title="Double-click to toggle sidebar"
+      >
         {/* Header */}
         <div style={{
           padding: '16px',

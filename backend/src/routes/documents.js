@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const DocumentManagerService = require('../services/DocumentManagerService');
 const AuthService = require('../services/AuthService');
+const ContextService = require('../services/ContextService');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { sanitizeInput } = require('../middleware/validation');
 const logger = require('../utils/logger');
@@ -16,6 +17,7 @@ const logger = require('../utils/logger');
 const router = express.Router();
 const documentManager = new DocumentManagerService();
 const authService = new AuthService();
+const contextService = new ContextService();
 
 // Configure multer for file uploads with enhanced validation
 const upload = multer({
@@ -70,7 +72,7 @@ router.post('/upload', upload.array('files', 10), sanitizeInput, asyncHandler(as
   // Normalize document type to lowercase for backend compatibility
   const normalizedDocumentType = documentType.toLowerCase();
 
-  logger.info(`Uploading ${files.length} files to ${normalizedDocumentType}/${subfolder || 'default'}`);
+  logger.info(`Uploading ${files.length} files to ${normalizedDocumentType}/${subfolder || 'default'} (project: ${projectName || 'NONE'})`);
 
   try {
     const parsedMetadata = metadata ? JSON.parse(metadata) : {};
@@ -89,6 +91,18 @@ router.post('/upload', upload.array('files', 10), sanitizeInput, asyncHandler(as
         logger.warn(`Failed to delete temp file ${file.path}: ${err.message}`)
       )
     ));
+
+    // Trigger context building for the project if documents were uploaded with a project name
+    if (projectName && projectName.trim()) {
+      try {
+        logger.info(`Triggering context build for project: ${projectName}`);
+        // Trigger context build in the background (don't wait for completion)
+        contextService.triggerContextBuild(projectName, normalizedDocumentType);
+      } catch (contextError) {
+        logger.warn(`Could not trigger context build: ${contextError.message}`);
+        // Don't fail the upload if context building fails
+      }
+    }
 
     res.json({
       success: true,

@@ -133,17 +133,15 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
     setSelectedDocuments(new Set()); // Clear selections when toggling
   };
 
-  // Left panel toggle function
+  // Left panel toggle function (not used - this was for the wrong element)
   const toggleLeftPanel = () => {
     if (panelSizes.left === 0) {
-      // Expanding panel - restore to 25%
       setPanelSizes(prev => ({
         ...prev,
         left: 25,
         center: 75 - prev.right
       }));
     } else {
-      // Collapsing panel - set to 0
       setPanelSizes(prev => ({
         ...prev,
         left: 0,
@@ -580,8 +578,10 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
     setLoadingDocumentContent(true);
     try {
+      // Use the document's actual category instead of project's documentType
+      const documentCategory = document.category || 'solicitations';
       // API call to get document content
-      const response = await fetch(`${apiUrl}/api/documents/content/${selectedProject.documentType}/${selectedProject.title}/${encodeURIComponent(document.originalName || document.filename)}`);
+      const response = await fetch(`${apiUrl}/api/documents/content/${documentCategory}/${selectedProject.title}/${encodeURIComponent(document.originalName || document.filename)}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -1303,7 +1303,18 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         overflow: 'hidden',
         position: 'relative'
       }}>
-      <div>Testing basic structure - JSX debugging</div>
+
+      {/* Left Panel - Document Sources */}
+      <div
+        data-left-panel
+        style={{
+          width: `${panelSizes.left}%`,
+          backgroundColor: theme.surface,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: '200px'
+        }}
+      >
 
         {/* Reading Pane */}
         <div style={{
@@ -2305,6 +2316,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
             </div>
         </div>
       </div>
+      </div>
+      </div>
 
       {/* Left Resize Handle */}
       <div
@@ -2342,8 +2355,6 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
           backgroundColor: 'currentColor',
           opacity: 0.5
         }} />
-      </div>
-        )}
       </div>
 
       {/* Center Panel - Writing Interface */}
@@ -3184,7 +3195,137 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         </div>
       </div>
 
-      {/* Modals temporarily commented out for debugging */}
+      {/* Notification Modal */}
+      {notification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          backgroundColor: notification.type === 'error' ? theme.error :
+                          notification.type === 'success' ? theme.success : theme.primary,
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          maxWidth: '400px',
+          fontSize: '14px',
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>
+              {notification.type === 'error' ? '❌' :
+               notification.type === 'success' ? '✅' : 'ℹ️'}
+            </span>
+            <span style={{ whiteSpace: 'pre-line' }}>{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '16px',
+                marginLeft: 'auto',
+                opacity: 0.8,
+                padding: '0 4px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001
+        }}>
+          <div style={{
+            backgroundColor: theme.surface,
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            border: `1px solid ${theme.border}`
+          }}>
+            <div style={{
+              fontSize: '16px',
+              color: theme.text,
+              marginBottom: '20px',
+              lineHeight: '1.5'
+            }}>
+              {confirmDialog.message}
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={confirmDialog.onCancel}
+                style={{
+                  background: 'none',
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  color: theme.text,
+                  fontSize: '14px'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                style={{
+                  backgroundColor: theme.error,
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  fontSize: '14px'
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      <UploadModal
+        isOpen={showUploadModal}
+        onClose={() => {
+          setShowUploadModal(false);
+          setDroppedFiles([]);
+        }}
+        onProjectCreated={() => {
+          if (selectedProject) {
+            loadProjectDocuments();
+          }
+        }}
+        selectedProject={selectedProject}
+        droppedFiles={droppedFiles}
+        theme={theme}
+      />
     </div>
   );
 };
