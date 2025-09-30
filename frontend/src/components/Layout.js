@@ -1909,20 +1909,53 @@ const Layout = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* AI Health Status - only show on AI Writing tab */}
             {activeTab === 'ai-writing' && aiHealth && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 8px',
-                backgroundColor: aiHealth.available ? '#d4edda' : '#f8d7da',
-                borderRadius: '12px',
-                fontSize: '12px',
-                fontWeight: '600',
-                color: aiHealth.available ? '#155724' : '#721c24'
-              }}>
-                <span>{aiHealth.available ? '✅' : '❌'}</span>
-                <span>{aiHealth.available ? 'AI Online' : 'AI Offline'}</span>
-              </div>
+              <button
+                style={{
+                  backgroundColor: aiHealth.isWarming
+                    ? '#ffc107' // Amber/orange while warming
+                    : aiHealth.available ? '#28a745' : '#dc3545',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '4px 12px',
+                  paddingLeft: '32px',
+                  borderRadius: '16px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  position: 'relative',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  transition: 'all 0.2s ease',
+                  boxShadow: aiHealth.isWarming
+                    ? '0 1px 3px rgba(255, 193, 7, 0.3)'
+                    : aiHealth.available ? '0 1px 3px rgba(40, 167, 69, 0.3)' : '0 1px 3px rgba(220, 53, 69, 0.3)',
+                  height: '28px',
+                  minWidth: '100px',
+                  letterSpacing: '0.5px',
+                  marginRight: '8px',
+                  textTransform: 'uppercase'
+                }}
+                title={aiHealth.statusLabel || (aiHealth.available ? 'AI Online' : 'AI Offline')}
+              >
+                {/* Circle with icon on the left */}
+                <div style={{
+                  position: 'absolute',
+                  left: '4px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: '1.5px solid #ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'transparent',
+                  fontSize: '10px'
+                }}>
+                  {aiHealth.isWarming ? '🔄' : aiHealth.available ? '✅' : '❌'}
+                </div>
+                <span>{aiHealth.statusLabel || (aiHealth.available ? 'AI Online' : 'AI Offline')}</span>
+              </button>
             )}
             {/* Info Button - styled like MORE INFO button */}
             {activeTab === 'ai-writing' && (
@@ -1935,10 +1968,10 @@ const Layout = () => {
                   backgroundColor: '#1976d2',
                   color: '#ffffff',
                   border: 'none',
-                  padding: '10px 24px',
-                  paddingRight: '52px',
-                  borderRadius: '30px',
-                  fontSize: '16px',
+                  padding: '4px 12px',
+                  paddingRight: '32px',
+                  borderRadius: '16px',
+                  fontSize: '12px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   display: 'flex',
@@ -1946,21 +1979,21 @@ const Layout = () => {
                   position: 'relative',
                   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 6px rgba(25, 118, 210, 0.3)',
-                  height: '42px',
-                  minWidth: '120px',
-                  letterSpacing: '1px',
+                  boxShadow: '0 1px 3px rgba(25, 118, 210, 0.3)',
+                  height: '28px',
+                  minWidth: '80px',
+                  letterSpacing: '0.5px',
                   marginRight: '8px',
                   textTransform: 'uppercase'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#1565c0';
-                  e.currentTarget.style.boxShadow = '0 4px 10px rgba(25, 118, 210, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 2px 5px rgba(25, 118, 210, 0.4)';
                   e.currentTarget.style.transform = 'translateY(-1px)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#1976d2';
-                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(25, 118, 210, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(25, 118, 210, 0.3)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
                 title="Toggle project details"
@@ -1969,17 +2002,17 @@ const Layout = () => {
                 {/* Circle with arrow icon */}
                 <div style={{
                   position: 'absolute',
-                  right: '6px',
-                  width: '30px',
-                  height: '30px',
+                  right: '4px',
+                  width: '20px',
+                  height: '20px',
                   borderRadius: '50%',
-                  border: '2px solid #ffffff',
+                  border: '1.5px solid #ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'transparent'
                 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </div>
@@ -1988,16 +2021,55 @@ const Layout = () => {
             <button
               onClick={() => setShowApiExplorer(!showApiExplorer)}
               style={{
-                backgroundColor: showApiExplorer ? currentTheme.primary : currentTheme.secondary,
-                color: 'white',
+                backgroundColor: showApiExplorer ? '#6c757d' : '#495057',
+                color: '#ffffff',
                 border: 'none',
-                padding: '6px 12px',
-                borderRadius: '6px',
+                padding: '4px 12px',
+                paddingLeft: '32px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '12px'
+                display: 'flex',
+                alignItems: 'center',
+                position: 'relative',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(73, 80, 87, 0.3)',
+                height: '28px',
+                minWidth: '100px',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase'
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#5a6268';
+                e.currentTarget.style.boxShadow = '0 2px 5px rgba(73, 80, 87, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = showApiExplorer ? '#6c757d' : '#495057';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(73, 80, 87, 0.3)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              title="Toggle API Explorer"
             >
-              🛠 Dev Tools
+              {/* Circle with icon on the left */}
+              <div style={{
+                position: 'absolute',
+                left: '4px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                border: '1.5px solid #ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'transparent',
+                fontSize: '11px'
+              }}>
+                🛠️
+              </div>
+              <span>Dev Tools</span>
             </button>
           </div>
         </header>

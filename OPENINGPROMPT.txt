@@ -1,0 +1,5 @@
+
+> Good morning Claude! Please read - E:\dev\gov-proposal-ai\.vscode\settings.json\
+\
+Once you are done with that, please read all md files and all the files in the doc directory and build out a most recent todo /      
+prioritized list 

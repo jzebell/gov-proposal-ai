@@ -1,5 +1,110 @@
 # Government Proposal AI - Changelog
 
+## Version 2.1.4 - UI Polish & Feature Integration (2025-09-30 Afternoon)
+
+### ✨ **Feature Integration**
+
+#### Global Prompt Configuration System Restored:
+- **Fixed Missing Integration**: Reconnected `GlobalPromptConfig` component to Admin Settings
+  - Component was fully implemented but not integrated into UI
+  - Added import and replaced "Coming Soon" placeholder
+  - Now accessible via Admin Settings → Global Settings tab
+  - Full CRUD for writing standards, rules, and dynamic variables
+  - Documentation: `/docs/troubleshooting/2025-09-30-global-prompt-integration-fix.md`
+
+#### Model Warm-up Status Indicator:
+- **Connected Warm-up to UI**: AI Online indicator now shows real-time warm-up status
+  - 🔄 **Amber/Orange** - Models warming up (with "Warming up models..." text)
+  - ✅ **Green** - Models ready and online
+  - ❌ **Red** - AI service offline
+  - Integrated `useModelWarmup` hook with `AIWritingThreePanel`
+  - Auto-triggers warmup on model selection
+  - Reactive updates when warmup status changes
+  - Documentation: `/docs/troubleshooting/2025-09-30-model-warmup-indicator-integration.md`
+
+### 🎨 **UI/UX Improvements**
+
+#### Header Button Standardization:
+- **Unified Design System**: All three header buttons now share consistent styling
+  - Pill-shaped design (30px border-radius)
+  - Consistent height (42px), padding, and font styling
+  - Icon-in-circle on left for AI Online and Dev Tools
+  - Icon-in-circle on right for INFO button (with arrow)
+  - Proper color coding: Green (AI Online), Blue (INFO), Gray (Dev Tools)
+  - Smooth hover effects and shadows
+
+#### Files Modified:
+- `frontend/src/components/AdminSettings.js` - Added GlobalPromptConfig import and integration
+- `frontend/src/components/AIWritingThreePanel.js` - Added warmup hook integration
+- `frontend/src/components/Layout.js` - Updated all three header buttons for consistent styling
+
+### 📚 **Documentation**
+
+#### Troubleshooting Guides Created:
+1. `/docs/troubleshooting/2025-09-30-global-prompt-integration-fix.md`
+   - Root cause analysis of missing integration
+   - Step-by-step fix implementation
+   - Feature capabilities now available
+
+2. `/docs/troubleshooting/2025-09-30-model-warmup-indicator-integration.md`
+   - Hook integration process
+   - Color state logic
+   - Testing verification steps
+
+3. `/docs/BACKLOG.md`
+   - Created post-production feature backlog
+   - Moved #9 (ML Decision Dashboard) and #18 (SharePoint Integration) to long-term backlog
+
+### ✅ **Results**
+- Global Prompt Configuration fully accessible and functional
+- Real-time model warmup visibility in UI
+- Professional, cohesive header button design
+- Comprehensive documentation for future reference
+
+---
+
+## Version 2.1.3 - Docker Networking & Configuration Fixes (2025-09-30 Morning)
+
+### 🔧 **Infrastructure & Configuration**
+
+#### Fixed Issues:
+- **Backend Database Connection**: Fixed `DocumentType.js` to use environment variables instead of hardcoded connection string
+  - Resolved ECONNREFUSED errors during initialization
+  - Now properly uses `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` from environment
+
+- **Frontend-Backend Communication**: Resolved 500/504 Gateway Timeout errors
+  - Created `frontend/src/setupProxy.js` for proper Docker container networking
+  - Fixed proxy to use Docker service name (`http://backend:3001`) instead of `localhost`
+  - Added `http-proxy-middleware@^2.0.6` dependency
+
+- **Centralized API Configuration**: Eliminated hardcoded URLs across frontend
+  - Updated 5 components to use `API_BASE_URL` from `config/api.js`
+  - Components updated: InteractiveCitation, DocumentTypeManagement, AdminSettings, DocumentPreviewPane, AnalyticsDashboard
+  - Replaced pattern: `process.env.REACT_APP_API_URL || 'http://localhost:3001'` with `API_BASE_URL` import
+
+- **Environment Configuration**: Fixed Docker environment variable precedence
+  - Updated `frontend/.env` to use `http://backend:3001`
+  - Removed hardcoded `REACT_APP_API_URL` from `docker-compose.yml` frontend service
+  - Now properly uses `.env` file for environment-specific configuration
+  - Removed conflicting `proxy` setting from `frontend/package.json`
+
+- **Project Card Edit Button**: Fixed to navigate to AI Writing panel instead of metadata editor
+  - Changed `onEdit` handler to call `onProjectClick` in `ProjectCard.js:475`
+
+#### Documentation Added:
+- Created comprehensive troubleshooting guide: `/docs/troubleshooting/2025-09-30-docker-proxy-configuration-fix.md`
+- Documented Docker networking architecture and configuration strategy
+- Added verification steps and key learnings
+
+#### Results:
+- ✅ All Docker containers communicating properly
+- ✅ Frontend successfully proxying API requests to backend
+- ✅ Authentication working (401 responses are expected and handled correctly)
+- ✅ Database connections stable
+- ✅ Centralized configuration strategy implemented
+
+---
+
 ## Version 2.1.2 - Development Planning & Prioritization (2025-09-29)
 
 ### 📋 **Strategic Planning Documentation**

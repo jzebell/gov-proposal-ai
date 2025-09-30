@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
 import DocumentTypeManagement from './DocumentTypeManagement';
 import ArchivedProjectsManagement from './ArchivedProjectsManagement';
-import GlobalPromptConfig from './GlobalPromptConfig';
 
 const AdminSettings = ({ theme }) => {
   const [documentTypes, setDocumentTypes] = useState({});
@@ -1317,9 +1316,21 @@ const AdminSettings = ({ theme }) => {
       )}
 
       {/* Global Settings Tab */}
-        {activeTab === 'globalSettings' && !loading && (
-          <GlobalPromptConfig theme={theme} />
-        )}
+      {activeTab === 'globalSettings' && !loading && (
+        <div style={{
+          backgroundColor: theme.surface,
+          padding: '40px',
+          borderRadius: '8px',
+          border: `1px solid ${theme.border}`,
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚧</div>
+          <h3 style={{ margin: '0 0 8px 0', color: theme.text }}>Global Settings Coming Soon</h3>
+          <p style={{ margin: '0', color: theme.textSecondary }}>
+            Additional global configuration options will be available in a future update.
+          </p>
+        </div>
+      )}
 
       {/* Context Management Tab */}
       {activeTab === 'contextManagement' && !loading && (

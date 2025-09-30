@@ -2,9 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import UploadModal from './UploadModal';
 import { API_ENDPOINTS } from '../config/api';
+import useModelWarmup from '../hooks/useModelWarmup';
 
 const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
   const { user: currentUser } = useAuth();
+
+  // Initialize model warm-up hook
+  const {
+    getSystemStatus,
+    triggerModelSwitchWarmup,
+    isModelWarm,
+    isModelWarming,
+    warmModelCount,
+    isSystemWarming
+  } = useModelWarmup({
+    autoWarmup: true,
+    enableSmartWarmup: true,
+    warmupOnMount: true,
+    warmupOnModelSwitch: true
+  });
+
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [prompt, setPrompt] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
@@ -111,6 +128,13 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       window.removeEventListener('toggleRightPanel', handleToggleRightPanel);
     };
   }, []);
+
+  // Update health status when warmup status changes
+  useEffect(() => {
+    if (aiHealth) {
+      checkAIHealth();
+    }
+  }, [isSystemWarming, warmModelCount]);
 
 
   // Permission checking
@@ -447,12 +471,26 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       const response = await fetch('/api/ai-writing/health');
       const data = await response.json();
       if (data.success) {
-        setAiHealth(data.data);
-        if (onAiHealthChange) onAiHealthChange(data.data);
+        // Integrate warmup status with health data
+        const warmupStatus = getSystemStatus();
+        const combinedHealth = {
+          ...data.data,
+          warmupStatus: warmupStatus.status,
+          isWarming: isSystemWarming,
+          warmModelCount,
+          statusLabel: isSystemWarming ? 'Warming up models...' : data.data.available ? 'AI Online' : 'AI Offline'
+        };
+        setAiHealth(combinedHealth);
+        if (onAiHealthChange) onAiHealthChange(combinedHealth);
       }
     } catch (error) {
       // Error checking AI health - using offline status
-      const healthData = { available: false, error: error.message };
+      const healthData = {
+        available: false,
+        error: error.message,
+        warmupStatus: 'error',
+        isWarming: false
+      };
       setAiHealth(healthData);
       if (onAiHealthChange) onAiHealthChange(healthData);
     }
@@ -1155,7 +1193,15 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                       </label>
                       <select
                         value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
+                        onChange={(e) => {
+                          const newModel = e.target.value;
+                          setSelectedModel(newModel);
+                          // Trigger warmup for the newly selected model
+                          triggerModelSwitchWarmup(newModel, {
+                            userPreferences: [newModel],
+                            recentlyUsed: [newModel]
+                          });
+                        }}
                         style={{
                           width: '100%',
                           padding: '8px',
@@ -2536,7 +2582,15 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                       </label>
                       <select
                         value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
+                        onChange={(e) => {
+                          const newModel = e.target.value;
+                          setSelectedModel(newModel);
+                          // Trigger warmup for the newly selected model
+                          triggerModelSwitchWarmup(newModel, {
+                            userPreferences: [newModel],
+                            recentlyUsed: [newModel]
+                          });
+                        }}
                         style={{
                           width: '100%',
                           padding: '8px',
