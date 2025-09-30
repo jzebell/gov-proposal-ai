@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const InteractiveCitation = ({
   citation,
@@ -7,7 +8,7 @@ const InteractiveCitation = ({
   showPreview = false,
   compactMode = false,
   className = '',
-  apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+  apiUrl = API_BASE_URL
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [loading, setLoading] = useState(false);

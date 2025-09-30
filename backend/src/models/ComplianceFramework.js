@@ -10,7 +10,11 @@ const logger = require('../utils/logger');
 class ComplianceFramework {
   constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/dbname'
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'govai',
+      user: process.env.DB_USER || 'govaiuser',
+      password: process.env.DB_PASSWORD
     });
   }
 

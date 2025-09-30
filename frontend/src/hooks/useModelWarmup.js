@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 /**
  * Custom hook for managing model warm-up functionality
@@ -6,7 +7,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  */
 const useModelWarmup = (options = {}) => {
   const {
-    apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001',
     autoWarmup = true,
     enableSmartWarmup = true,
     warmupOnMount = true,
@@ -48,7 +48,7 @@ const useModelWarmup = (options = {}) => {
   const getWarmupStatus = useCallback(async (modelName = null) => {
     try {
       const queryParam = modelName ? `?model=${encodeURIComponent(modelName)}` : '';
-      const response = await fetch(`${apiUrl}/api/ai-writing/warmup/status${queryParam}`);
+      const response = await fetch(`/api/ai-writing/warmup/status${queryParam}`);
       const data = await response.json();
 
       if (data.success && isComponentMountedRef.current) {
@@ -71,7 +71,7 @@ const useModelWarmup = (options = {}) => {
       console.warn('Failed to get warmup status:', error.message);
     }
     return null;
-  }, [apiUrl]);
+  }, []);
 
   /**
    * Warm up a specific model
@@ -80,7 +80,7 @@ const useModelWarmup = (options = {}) => {
     if (!modelName) return { success: false, error: 'Model name required' };
 
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/warmup/model`, {
+      const response = await fetch('/api/ai-writing/warmup/model', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelName, priority })
@@ -110,7 +110,7 @@ const useModelWarmup = (options = {}) => {
       console.error('Error warming up model:', error);
       return { success: false, error: error.message };
     }
-  }, [apiUrl, getWarmupStatus]);
+  }, [getWarmupStatus]);
 
   /**
    * Perform smart warmup based on context
@@ -119,7 +119,7 @@ const useModelWarmup = (options = {}) => {
     if (!enableSmartWarmup) return { success: false, reason: 'Smart warmup disabled' };
 
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/warmup/smart`, {
+      const response = await fetch('/api/ai-writing/warmup/smart', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(context)
@@ -154,7 +154,7 @@ const useModelWarmup = (options = {}) => {
       console.error('Error performing smart warmup:', error);
       return { success: false, error: error.message };
     }
-  }, [apiUrl, enableSmartWarmup, getWarmupStatus]);
+  }, [enableSmartWarmup, getWarmupStatus]);
 
   /**
    * Trigger warmup on page load
@@ -249,7 +249,7 @@ const useModelWarmup = (options = {}) => {
    */
   useEffect(() => {
     if (warmupOnMount) {
-      // Delay initial warmup to avoid blocking UI
+      // Minimal delay for immediate warmup while not blocking initial render
       const initialWarmupTimeout = setTimeout(() => {
         triggerPageLoadWarmup({
           triggerType: 'session_start',
@@ -257,7 +257,7 @@ const useModelWarmup = (options = {}) => {
           projectModels: [],   // Can be populated from current project
           recentlyUsed: []     // Can be populated from localStorage/user history
         });
-      }, 2000);
+      }, 100); // Reduced from 2000ms to 100ms for faster initial warmup
 
       return () => clearTimeout(initialWarmupTimeout);
     }

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from '../config/api';
 import React, { useState, useEffect } from 'react';
 
 const PPAdminConfig = ({ theme }) => {
@@ -48,7 +49,7 @@ const PPAdminConfig = ({ theme }) => {
         systemHealth: {}
     });
 
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    
 
     useEffect(() => {
         loadInitialData();

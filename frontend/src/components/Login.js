@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
@@ -7,8 +8,6 @@ const Login = ({ onLogin }) => {
     email: 'admin@mock.local',
     role: 'admin'
   });
-
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   // Check for OAuth callback parameters
   useEffect(() => {
@@ -37,7 +36,7 @@ const Login = ({ onLogin }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/auth/me`, {
+      const response = await fetch(API_ENDPOINTS.AUTH_ME, {
         method: 'GET',
         credentials: 'include'
       });
@@ -57,13 +56,13 @@ const Login = ({ onLogin }) => {
   const handleGoogleLogin = () => {
     setError('');
     setLoading(true);
-    window.location.href = `${apiUrl}/api/auth/google`;
+    window.location.href = '/api/auth/google';
   };
 
   const handleMicrosoftLogin = () => {
     setError('');
     setLoading(true);
-    window.location.href = `${apiUrl}/api/auth/microsoft`;
+    window.location.href = '/api/auth/microsoft';
   };
 
   const handleMockLogin = async () => {
@@ -76,7 +75,7 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch(`${apiUrl}/api/auth/mock`, {
+      const response = await fetch(API_ENDPOINTS.AUTH_MOCK, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +104,7 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch(`${apiUrl}/api/auth/simulate-login`, {
+      const response = await fetch('/api/auth/simulate-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -351,28 +350,6 @@ const Login = ({ onLogin }) => {
             onMouseOut={(e) => !loading && (e.target.style.background = '#38a169')}
           >
             {loading ? 'Signing in...' : 'Mock Sign In'}
-          </button>
-
-          <button
-            onClick={handleLegacyLogin}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: '#374151',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => !loading && (e.target.style.background = '#1f2937')}
-            onMouseOut={(e) => !loading && (e.target.style.background = '#374151')}
-          >
-            Legacy Login
           </button>
         </div>
 

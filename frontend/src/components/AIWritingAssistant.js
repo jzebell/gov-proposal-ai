@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import useModelWarmup from '../hooks/useModelWarmup';
 import AIStatusIndicator from './AIStatusIndicator';
+import { API_ENDPOINTS } from '../config/api';
 
 const AIWritingAssistant = () => {
   const [selectedSection, setSelectedSection] = useState('technical-approach');
@@ -13,8 +14,6 @@ const AIWritingAssistant = () => {
   const [aiHealth, setAiHealth] = useState(null);
   const [usingLayeredPrompt, setUsingLayeredPrompt] = useState(false);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
   // Initialize model warm-up hook
   const {
     getSystemStatus,
@@ -24,7 +23,6 @@ const AIWritingAssistant = () => {
     warmModelCount,
     isSystemWarming
   } = useModelWarmup({
-    apiUrl,
     autoWarmup: true,
     enableSmartWarmup: true,
     warmupOnMount: true,
@@ -39,33 +37,33 @@ const AIWritingAssistant = () => {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/templates`);
+      const response = await fetch('/api/ai-writing/templates');
       const data = await response.json();
       if (data.success) {
         setTemplates(data.data);
         setPrompt(data.data['technical-approach']?.samplePrompt || '');
       }
     } catch (error) {
-      console.error('Error loading templates:', error);
+      // Error loading templates - using defaults
     }
   };
 
   const checkAIHealth = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/health`);
+      const response = await fetch('/api/ai-writing/health');
       const data = await response.json();
       if (data.success) {
         setAiHealth(data.data);
       }
     } catch (error) {
-      console.error('Error checking AI health:', error);
+      // Error checking AI health - using offline status
       setAiHealth({ available: false, error: error.message });
     }
   };
 
   const loadModels = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/models`);
+      const response = await fetch('/api/ai-writing/models');
       const data = await response.json();
       if (data.success) {
         setModels(data.data.models);
@@ -76,7 +74,7 @@ const AIWritingAssistant = () => {
         }
       }
     } catch (error) {
-      console.error('Error loading models:', error);
+      // Error loading models - using defaults
     }
   };
 
@@ -102,7 +100,7 @@ const AIWritingAssistant = () => {
 
     try {
       // First, build the layered prompt using the global prompt configuration system
-      const promptResponse = await fetch(`${apiUrl}/api/global-prompts/build`, {
+      const promptResponse = await fetch('/api/global-prompts/build', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,13 +119,13 @@ const AIWritingAssistant = () => {
         if (promptData.success) {
           finalPrompt = promptData.data.final_prompt;
           setUsingLayeredPrompt(true);
-          console.log('Using layered prompt:', promptData);
+          // Using layered prompt with persona and context
         }
       } else {
         setUsingLayeredPrompt(false);
       }
 
-      const response = await fetch(`${apiUrl}/api/ai-writing/generate-section`, {
+      const response = await fetch('/api/ai-writing/generate-section', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +167,7 @@ const AIWritingAssistant = () => {
       // Build layered prompt for content improvement
       const improvementPrompt = `Improve this content for clarity, persuasiveness, and compliance: ${generatedContent}`;
 
-      const promptResponse = await fetch(`${apiUrl}/api/global-prompts/build`, {
+      const promptResponse = await fetch('/api/global-prompts/build', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,11 +188,11 @@ const AIWritingAssistant = () => {
         const promptData = await promptResponse.json();
         if (promptData.success) {
           finalImprovementPrompt = promptData.data.final_prompt;
-          console.log('Using layered improvement prompt:', promptData);
+          // Using layered improvement prompt with persona and context
         }
       }
 
-      const response = await fetch(`${apiUrl}/api/ai-writing/improve-content`, {
+      const response = await fetch('/api/ai-writing/improve-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

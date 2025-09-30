@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import {
+    UPLOAD_DEFAULTS,
+    getDocumentTypeOptions,
+    getOrderedSubfolders,
+    getDefaultClassification
+} from '../config/uploadDefaults';
+import { API_ENDPOINTS } from '../config/api';
 
 const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = null, droppedFiles = [], theme }) => {
     const [selectedFiles, setSelectedFiles] = useState([]);
-    const [documentType, setDocumentType] = useState('solicitations');
+    const [documentType, setDocumentType] = useState(UPLOAD_DEFAULTS.defaultDocumentType);
     const [documentClassification, setDocumentClassification] = useState('');
-    const [subfolder, setSubfolder] = useState('');
+    const [subfolder, setSubfolder] = useState(UPLOAD_DEFAULTS.defaultSubfolder);
     const [projectName, setProjectName] = useState('');
     const [documentStructure, setDocumentStructure] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -19,8 +26,7 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
     const [filteredProjects, setFilteredProjects] = useState([]);
     const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
     const [newProjectOwner, setNewProjectOwner] = useState(null);
-
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const [uploadConfig, setUploadConfig] = useState(UPLOAD_DEFAULTS);
 
     // Mock users data for owner selection (same as in Layout.js)
     const mockUsers = [
@@ -32,17 +38,77 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
         { id: 6, name: 'Frank Thompson', email: 'frank.thompson@agency.gov', avatar: 'F', color: '#20c997' }
     ];
 
+    // Load upload configuration from backend
+    const loadUploadConfig = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/upload-defaults/config', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            if (data.success && data.data) {
+                setUploadConfig(data.data);
+                // Update default values with backend configuration
+                setDocumentType(data.data.defaultDocumentType);
+                setSubfolder(data.data.defaultSubfolder);
+            }
+        } catch (err) {
+            console.error('Failed to load upload configuration:', err);
+            // Fall back to default configuration
+        }
+    };
+
     // Load document structure and projects on component mount
     useEffect(() => {
         loadDocumentStructure();
         loadAvailableProjects();
+        loadUploadConfig();
         // Set default owner to first user
         if (mockUsers.length > 0) {
             setNewProjectOwner(mockUsers[0]);
         }
+
+        // Listen for configuration updates
+        const handleConfigUpdate = (event) => {
+            if (event.detail) {
+                setUploadConfig(event.detail);
+                // Update current values if they match the old defaults
+                if (documentType === uploadConfig.defaultDocumentType) {
+                    setDocumentType(event.detail.defaultDocumentType);
+                }
+                if (subfolder === uploadConfig.defaultSubfolder) {
+                    setSubfolder(event.detail.defaultSubfolder);
+                }
+            }
+        };
+
+        window.addEventListener('uploadDefaultsUpdated', handleConfigUpdate);
+
+        return () => {
+            window.removeEventListener('uploadDefaultsUpdated', handleConfigUpdate);
+        };
     }, []);
 
-    // Projects are loaded once on mount and don't need to reload when document type changes
+    // Load document classification options when document structure or type changes
+    useEffect(() => {
+        if (documentType) {
+            // Try to get default classification from config first
+            const defaultClassification = getDefaultClassification(documentType);
+
+            if (defaultClassification) {
+                setDocumentClassification(defaultClassification);
+            } else if (documentStructure) {
+                // Fall back to first available classification
+                const classifications = getDocumentClassificationOptions();
+                if (classifications.length > 0) {
+                    setDocumentClassification(classifications[0].value);
+                }
+            }
+        }
+    }, [documentStructure, documentType]);
 
     // Pre-populate with dropped files and selected project when props change
     useEffect(() => {
@@ -62,7 +128,7 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
 
     const loadDocumentStructure = async () => {
         try {
-            const response = await fetch(`${apiUrl}/api/documents/structure`);
+            const response = await fetch('/api/documents/structure');
             if (response.ok) {
                 const result = await response.json();
                 setDocumentStructure(result.data);
@@ -76,7 +142,7 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
 
     const loadAvailableProjects = async () => {
         try {
-            const response = await fetch(`${apiUrl}/api/projects`);
+            const response = await fetch(API_ENDPOINTS.PROJECTS);
             if (response.ok) {
                 const result = await response.json();
                 // Extract projects array from the API response structure
@@ -98,8 +164,15 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
     };
 
     const handleDocumentTypeChange = (event) => {
-        setDocumentType(event.target.value);
-        setSubfolder(''); // Reset subfolder when type changes
+        const newDocType = event.target.value;
+        setDocumentType(newDocType);
+        setSubfolder(UPLOAD_DEFAULTS.defaultSubfolder); // Reset to default subfolder
+
+        // Set default classification for the new document type
+        const defaultClassification = getDefaultClassification(newDocType);
+        if (defaultClassification) {
+            setDocumentClassification(defaultClassification);
+        }
 
         // Only clear project name if no project is pre-selected
         if (!selectedProject) {
@@ -107,8 +180,6 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
         }
 
         setShowProjectSuggestions(false);
-        // Reset document classification when storage type changes
-        setDocumentClassification('');
     };
 
     const getDocumentClassificationOptions = () => {
@@ -161,7 +232,7 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
         }
 
         try {
-            const response = await fetch(`${apiUrl}/api/documents/create-project`, {
+            const response = await fetch('/api/documents/create-project', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -234,7 +305,7 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
         }));
 
         try {
-            const response = await fetch(`${apiUrl}/api/documents/upload`, {
+            const response = await fetch(API_ENDPOINTS.DOCUMENTS_UPLOAD, {
                 method: 'POST',
                 body: formData
             });
@@ -265,9 +336,21 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
     };
 
     const getAvailableSubfolders = () => {
-        if (!documentStructure || !documentStructure.documentTypes || !documentType) return [];
+        // Default subfolders from config
+        const defaultSubfolders = UPLOAD_DEFAULTS.subfolderOrder;
+
+        if (!documentStructure || !documentStructure.documentTypes || !documentType) {
+            return defaultSubfolders.slice(0, 4); // Return first 4 default subfolders
+        }
+
         const docType = documentStructure.documentTypes[documentType];
-        return docType ? docType.subfolders : [];
+        if (!docType || !docType.subfolders) {
+            return defaultSubfolders.slice(0, 4);
+        }
+
+        // Use the ordering function from config
+        // Use backend configuration if available, otherwise fall back to default ordering
+        return uploadConfig.subfolderOrder || getOrderedSubfolders(docType.subfolders);
     };
 
     const getFileTypeInfo = () => {
@@ -296,12 +379,12 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
                             color: theme?.text || '#000'
                         }}
                     >
-                        {documentStructure && documentStructure.documentTypes ?
-                            Object.entries(documentStructure.documentTypes).map(([key, type]) => (
-                                <option key={key} value={key}>{type.name}</option>
-                            )) :
-                            <option value="solicitations">Solicitations</option>
-                        }
+                        {/* Configurable order from upload defaults */}
+                        {(uploadConfig.documentTypeOrder || getDocumentTypeOptions()).map(option => (
+                            <option key={option.value} value={option.value}>
+                                {option.label}
+                            </option>
+                        ))}
                     </select>
                     {getFileTypeInfo() && (
                         <small style={{ color: theme?.textSecondary || '#666', display: 'block', marginTop: '5px' }}>
@@ -353,7 +436,6 @@ const DocumentUpload = ({ onProjectCreated, isModal = false, selectedProject = n
                             color: theme?.text || '#000'
                         }}
                     >
-                        <option value="">Select subfolder (optional)</option>
                         {getAvailableSubfolders().map(folder => (
                             <option key={folder} value={folder}>{folder}</option>
                         ))}

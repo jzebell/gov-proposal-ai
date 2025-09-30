@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from '../config/api';
 import React, { useState, useEffect } from 'react';
 
 const ArchivedProjectsManagement = ({ theme }) => {
@@ -9,7 +10,7 @@ const ArchivedProjectsManagement = ({ theme }) => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  
 
   // Load archived projects when component mounts or filters change
   useEffect(() => {
@@ -19,7 +20,7 @@ const ArchivedProjectsManagement = ({ theme }) => {
   const loadArchivedProjects = async () => {
     setArchivedLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/api/projects/archived?days=${archiveDays}&page=${archivePage}&limit=20`, {
+      const response = await fetch(`/api/projects/archived?days=${archiveDays}&page=${archivePage}&limit=20`, {
         credentials: 'include'
       });
 
@@ -44,7 +45,7 @@ const ArchivedProjectsManagement = ({ theme }) => {
     }
 
     try {
-      const response = await fetch(`${apiUrl}/api/projects/${projectId}/restore`, {
+      const response = await fetch(`/api/projects/${projectId}/restore`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

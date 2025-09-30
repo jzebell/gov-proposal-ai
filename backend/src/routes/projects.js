@@ -261,6 +261,57 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * @route GET /api/projects/archived
+ * @desc Get archived projects (admin only)
+ * @access Public
+ */
+router.get('/archived', asyncHandler(async (req, res) => {
+  const {
+    days = 30,
+    page = 1,
+    limit = 20,
+    sortBy = 'archived_at',
+    sortOrder = 'DESC'
+  } = req.query;
+
+  logger.info(`Getting archived projects for last ${days} days`);
+
+  const daysInt = parseInt(days);
+  const pageInt = parseInt(page);
+  const limitInt = Math.min(parseInt(limit), 100);
+
+  if (isNaN(daysInt) || daysInt < 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'Days must be a positive number'
+    });
+  }
+
+  try {
+    const result = await getProjectService().getArchivedProjects({
+      days: daysInt,
+      pagination: {
+        page: pageInt,
+        limit: limitInt,
+        sortBy,
+        sortOrder
+      }
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    logger.error(`Error getting archived projects: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get archived projects'
+    });
+  }
+}));
+
+/**
  * @route GET /api/projects/:id
  * @desc Get specific project with full details
  * @access Public
@@ -346,57 +397,6 @@ router.post('/:id/archive', sanitizeInput, asyncHandler(async (req, res) => {
     success: true,
     data: result
   });
-}));
-
-/**
- * @route GET /api/projects/archived
- * @desc Get archived projects (admin only)
- * @access Public
- */
-router.get('/archived', asyncHandler(async (req, res) => {
-  const {
-    days = 30,
-    page = 1,
-    limit = 20,
-    sortBy = 'archived_at',
-    sortOrder = 'DESC'
-  } = req.query;
-
-  logger.info(`Getting archived projects for last ${days} days`);
-
-  const daysInt = parseInt(days);
-  const pageInt = parseInt(page);
-  const limitInt = Math.min(parseInt(limit), 100);
-
-  if (isNaN(daysInt) || daysInt < 1) {
-    return res.status(400).json({
-      success: false,
-      message: 'Days must be a positive number'
-    });
-  }
-
-  try {
-    const result = await getProjectService().getArchivedProjects({
-      days: daysInt,
-      pagination: {
-        page: pageInt,
-        limit: limitInt,
-        sortBy,
-        sortOrder
-      }
-    });
-
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    logger.error(`Error getting archived projects: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get archived projects'
-    });
-  }
 }));
 
 /**

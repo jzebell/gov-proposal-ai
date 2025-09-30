@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const DocumentTypeManagement = ({ theme }) => {
   const [documentTypes, setDocumentTypes] = useState([]);
@@ -15,7 +16,7 @@ const DocumentTypeManagement = ({ theme }) => {
     subfolders: ['general']
   });
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+  const apiUrl = API_BASE_URL;
 
   useEffect(() => {
     loadDocumentTypes();

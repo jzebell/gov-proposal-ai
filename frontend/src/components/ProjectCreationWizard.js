@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -39,8 +40,6 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
   const [complianceFrameworks, setComplianceFrameworks] = useState({});
   const [agencyFrameworks, setAgencyFrameworks] = useState([]);
   const [loadingFrameworks, setLoadingFrameworks] = useState(false);
-
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   // Mock users data for owner selection
   const mockUsers = [
@@ -110,7 +109,7 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
   const loadReferenceData = async () => {
     try {
       // Try to load departments from API, fall back to mock data
-      const deptResponse = await fetch(`${apiUrl}/api/projects/hierarchy/departments`, {
+      const deptResponse = await fetch('/api/projects/hierarchy/departments', {
         credentials: 'include'
       });
       if (deptResponse.ok) {
@@ -131,7 +130,7 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
       }
 
       // Load document types for project types
-      const docTypesResponse = await fetch(`${apiUrl}/api/document-types`, {
+      const docTypesResponse = await fetch(API_ENDPOINTS.DOCUMENT_TYPES, {
         credentials: 'include'
       });
       if (docTypesResponse.ok) {
@@ -158,7 +157,7 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
 
   const loadAgencies = async (departmentId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/projects/hierarchy/agencies/${departmentId}`, {
+      const response = await fetch(`/api/projects/hierarchy/agencies/${departmentId}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -208,7 +207,7 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
   const loadComplianceFrameworks = async () => {
     setLoadingFrameworks(true);
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/frameworks`, {
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/frameworks`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -229,8 +228,8 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
 
     try {
       const url = departmentId
-        ? `${apiUrl}/api/compliance/frameworks/agency/${agencyId}?departmentId=${departmentId}`
-        : `${apiUrl}/api/compliance/frameworks/agency/${agencyId}`;
+        ? `/api/compliance/frameworks/agency/${agencyId}?departmentId=${departmentId}`
+        : `/api/compliance/frameworks/agency/${agencyId}`;
 
       const response = await fetch(url, {
         credentials: 'include'
@@ -336,7 +335,7 @@ const ProjectCreationWizard = ({ isOpen, onClose, onProjectCreated, theme }) => 
         estimated_value: formData.estimated_value ? parseFloat(formData.estimated_value) : null
       };
 
-      const response = await fetch(`${apiUrl}/api/projects`, {
+      const response = await fetch(API_ENDPOINTS.PROJECTS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

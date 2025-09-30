@@ -172,6 +172,10 @@ class AuthService {
         const client = await this.pool.connect();
 
         try {
+            // Get role ID for the requested role
+            const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', [roleName]);
+            const roleId = roleResult.rows.length > 0 ? roleResult.rows[0].id : null;
+
             // Check if mock user exists
             const existingUser = await client.query(
                 'SELECT u.*, r.name as role_name, r.permissions FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.email = $1',
@@ -179,12 +183,22 @@ class AuthService {
             );
 
             if (existingUser.rows.length > 0) {
+                // Update the user's role if it's different
+                if (existingUser.rows[0].role_id !== roleId && roleId !== null) {
+                    await client.query(
+                        'UPDATE users SET role_id = $1 WHERE id = $2',
+                        [roleId, existingUser.rows[0].id]
+                    );
+
+                    // Fetch updated user with new role info
+                    const updatedUser = await client.query(
+                        'SELECT u.*, r.name as role_name, r.permissions FROM users u LEFT JOIN roles r ON u.role_id = r.id WHERE u.id = $1',
+                        [existingUser.rows[0].id]
+                    );
+                    return updatedUser.rows[0];
+                }
                 return existingUser.rows[0];
             }
-
-            // Get role ID
-            const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', [roleName]);
-            const roleId = roleResult.rows.length > 0 ? roleResult.rows[0].id : null;
 
             // Create mock user with unique username
             const baseUsername = email.split('@')[0]; // Extract username from email

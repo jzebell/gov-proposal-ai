@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const AnalyticsDashboard = ({
   className = '',
   autoRefresh = true,
   refreshInterval = 30000, // 30 seconds
-  apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+  apiUrl = API_BASE_URL
 }) => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from '../config/api';
 import React, { useState, useEffect } from 'react';
 
 const PastPerformanceManager = ({ theme }) => {
@@ -42,7 +43,7 @@ const PastPerformanceManager = ({ theme }) => {
         currentPage: 1
     });
 
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    
 
     // Load past performances on component mount
     useEffect(() => {
@@ -80,7 +81,7 @@ const PastPerformanceManager = ({ theme }) => {
                 )
             });
 
-            const response = await fetch(`${apiUrl}/api/past-performance?${queryParams}`);
+            const response = await fetch(`/api/past-performance?${queryParams}`);
             if (!response.ok) throw new Error('Failed to load past performances');
 
             const data = await response.json();
@@ -122,7 +123,7 @@ const PastPerformanceManager = ({ theme }) => {
                 )
             });
 
-            const response = await fetch(`${apiUrl}/api/past-performance/search?${queryParams}`);
+            const response = await fetch(`/api/past-performance/search?${queryParams}`);
             if (!response.ok) throw new Error('Search failed');
 
             const data = await response.json();

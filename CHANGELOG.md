@@ -1,5 +1,37 @@
 # Government Proposal AI - Changelog
 
+## Version 2.1.2 - Development Planning & Prioritization (2025-09-29)
+
+### 📋 **Strategic Planning Documentation**
+
+#### Documentation Updates:
+- **Development Priorities Document**: Comprehensive roadmap with 16 prioritized features
+  - Created `/docs/design/2025-09-29-current-development-priorities.md`
+  - Merged Epic 2 requirements with immediate fixes
+  - Established 5-phase implementation plan (16 weeks)
+
+- **Architectural Decision Record**: Development prioritization strategy
+  - Created `/docs/adr/2025-09-29-development-prioritization.md`
+  - Documented rationale for phased approach
+  - Defined success metrics and tracking
+
+#### Priority Structure Established:
+- **P1 - Critical Fixes** (Week 1): Edit button, console logging, model warm-up
+- **P2 - Core Functionality** (Weeks 2-3): Document types, global prompts, CRUD operations
+- **P3 - Advanced Features** (Weeks 4-6): Chat history, ML dashboard, configuration tab
+- **P4 - Epic Features** (Weeks 7-12): Epic 2 RAG, visualizations, classifications
+- **P5 - Integration Features** (Weeks 13-16): Compliance, RBAC, external integrations
+
+#### Key Features Identified:
+- **Model Warm-up Optimization**: Reduce 2-minute initial delay to <30 seconds
+- **Chat History System**: Rolling conversation threads with user-project association
+- **Global Prompt Configuration**: Creative writing standards and ground rules
+- **ML Decision Dashboard**: Visibility into AI decision-making process
+- **Word Cloud Visualizations**: Document and taxonomy analysis
+- **pgvector Integration**: Semantic search for Epic 2 Past Performance RAG
+
+---
+
 ## Version 2.1.1 - Full Backend Integration & Production Features (2025-09-24)
 
 ### 🚀 **Complete System Integration**

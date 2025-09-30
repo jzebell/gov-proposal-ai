@@ -45,8 +45,8 @@ This is a **production-ready prototype** that transforms government proposal dev
 ```
 
 **Containerized Services:**
-- **Frontend:** React with real-time streaming (Port 3001)
-- **Backend:** Node.js with Express + WebSocket (Port 3000)
+- **Frontend:** React with real-time streaming (Port 3000)
+- **Backend:** Node.js with Express + WebSocket (Port 3001)
 - **Database:** PostgreSQL with pgvector extension (Port 5432)
 - **AI Engine:** Ollama with Qwen 2.5 14B model (Port 11434)
 
@@ -107,9 +107,14 @@ This is a **production-ready prototype** that transforms government proposal dev
    ```
 
 5. **Access Application:**
-   - Frontend: [http://localhost:3001](http://localhost:3001)
-   - API: [http://localhost:3000](http://localhost:3000)
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - API: [http://localhost:3001](http://localhost:3001)
    - Database: `localhost:5432`
+
+6. **Configuration:**
+   - See [Frontend Configuration Guide](frontend/CONFIG.md) for environment setup
+   - Development uses proxy (no configuration needed)
+   - Production requires environment variables (see `.env.production`)
 
 ---
 

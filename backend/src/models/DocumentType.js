@@ -8,7 +8,11 @@ const { Pool } = require('pg');
 class DocumentType {
   constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'govaiuser'}:${process.env.DB_PASSWORD || 'password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'govai'}`
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'govai',
+      user: process.env.DB_USER || 'govaiuser',
+      password: process.env.DB_PASSWORD
     });
     this.initializeTables();
   }

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -15,15 +16,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/auth/me`, {
+      const response = await fetch(API_ENDPOINTS.AUTH_ME, {
         method: 'GET',
         credentials: 'include'
       });
@@ -56,7 +55,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch(`${apiUrl}/api/auth/logout`, {
+      await fetch(API_ENDPOINTS.AUTH_LOGOUT, {
         method: 'POST',
         credentials: 'include'
       });
@@ -70,7 +69,7 @@ export const AuthProvider = ({ children }) => {
 
   const refreshAuth = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/auth/refresh`, {
+      const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include'
       });

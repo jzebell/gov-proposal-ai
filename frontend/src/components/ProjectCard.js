@@ -426,7 +426,9 @@ const ProjectCard = ({
           display: 'grid',
           gridTemplateColumns: isAdmin && onArchive ?
             (teamSize > 1 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr') :
-            (teamSize > 1 ? '1fr 1fr 1fr' : '1fr 1fr'),
+            isAdmin && onEdit ?
+              (teamSize > 1 ? '1fr 1fr 1fr' : '1fr 1fr') :
+              (teamSize > 1 ? '1fr 1fr' : '1fr'),
           gap: '6px',
           paddingTop: '12px',
           borderTop: `1px solid ${theme.border}`
@@ -453,6 +455,37 @@ const ProjectCard = ({
           >
             👁️ View
           </button>
+
+          {isAdmin && onEdit && (
+            <button style={{
+              padding: '6px 8px',
+              border: `1px solid ${theme.primary}`,
+              backgroundColor: 'transparent',
+              color: theme.primary,
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '3px'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onProjectClick) onProjectClick(project);
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = theme.primary;
+              e.target.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = theme.primary;
+            }}
+            >
+              ✏️ Edit
+            </button>
+          )}
 
           {onManageTeam && (
             <button style={{

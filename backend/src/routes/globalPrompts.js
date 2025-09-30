@@ -1,403 +1,415 @@
 /**
  * Global Prompt Configuration API Routes
- * Manages the 4-layer prompt hierarchy system
+ * Manages AI writing standards and prompt templates
  */
 
 const express = require('express');
-const GlobalPromptService = require('../services/GlobalPromptService');
-const { asyncHandler } = require('../middleware/errorHandler');
-const { sanitizeInput } = require('../middleware/validation');
-const logger = require('../utils/logger');
-
 const router = express.Router();
-const globalPromptService = new GlobalPromptService();
+const PromptCompilerService = require('../services/PromptCompilerService');
+const { Pool } = require('pg');
+
+// Initialize services
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'govai',
+  user: process.env.DB_USER || 'govaiuser',
+  password: process.env.DB_PASSWORD || 'devpass123'
+});
+
+const promptCompiler = new PromptCompilerService(pool);
+
+// Placeholder auth middleware (replace with actual auth when available)
+const requireAuth = (req, res, next) => {
+  // TODO: Implement actual authentication
+  req.user = { id: 1, role: 'admin' }; // Mock user for development
+  next();
+};
+
+const requireAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'administrator')) {
+    next();
+  } else {
+    res.status(403).json({
+      success: false,
+      message: 'Admin access required'
+    });
+  }
+};
 
 /**
- * @route GET /api/global-prompts/rules
- * @desc Get all global prompt rules with filtering
- * @access Admin
+ * GET /api/admin/global-prompt
+ * Get the current global prompt configuration
  */
-router.get('/rules', asyncHandler(async (req, res) => {
-    const { category, rule_type, is_active } = req.query;
-
-    const filters = {};
-    if (category) filters.category = category;
-    if (rule_type) filters.rule_type = rule_type;
-    if (is_active !== undefined) filters.is_active = is_active === 'true';
-
-    const rules = await globalPromptService.getAllGlobalRules(filters);
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const config = await promptCompiler.getActiveConfig();
 
     res.json({
-        success: true,
-        data: {
-            rules,
-            total: rules.length,
-            filters: filters
-        }
+      success: true,
+      data: {
+        basePrompt: config.base_prompt,
+        rules: config.rules || [],
+        variables: config.variables || [],
+        isActive: config.is_active,
+        version: config.version,
+        lastUpdated: config.updated_at,
+        updatedBy: config.updated_by
+      }
     });
-}));
-
-/**
- * @route POST /api/global-prompts/rules
- * @desc Create a new global prompt rule
- * @access Admin
- */
-router.post('/rules', sanitizeInput, asyncHandler(async (req, res) => {
-    const {
-        rule_name,
-        rule_type,
-        category,
-        rule_content,
-        priority,
-        applies_to_personas,
-        applies_to_contexts,
-        conditions
-    } = req.body;
-
-    // Validation
-    if (!rule_name || !rule_type || !category || !rule_content) {
-        return res.status(400).json({
-            success: false,
-            message: 'rule_name, rule_type, category, and rule_content are required'
-        });
-    }
-
-    const validRuleTypes = ['positive_directive', 'negative_constraint', 'contextual_behavior'];
-    if (!validRuleTypes.includes(rule_type)) {
-        return res.status(400).json({
-            success: false,
-            message: `rule_type must be one of: ${validRuleTypes.join(', ')}`
-        });
-    }
-
-    const validCategories = ['tone', 'compliance', 'accuracy', 'formatting', 'security'];
-    if (!validCategories.includes(category)) {
-        return res.status(400).json({
-            success: false,
-            message: `category must be one of: ${validCategories.join(', ')}`
-        });
-    }
-
-    try {
-        // Get current user ID (would come from auth middleware in production)
-        const userId = req.user?.id || 1; // Fallback for development
-
-        const ruleData = {
-            rule_name,
-            rule_type,
-            category,
-            rule_content,
-            priority: parseInt(priority) || 100,
-            applies_to_personas: applies_to_personas || [],
-            applies_to_contexts: applies_to_contexts || [],
-            conditions: conditions || {}
-        };
-
-        // Validate for conflicts
-        const validation = await globalPromptService.validateRuleForConflicts(ruleData);
-        if (validation.hasConflicts) {
-            return res.status(400).json({
-                success: false,
-                message: 'Rule conflicts detected',
-                conflicts: validation.conflicts
-            });
-        }
-
-        const newRule = await globalPromptService.createGlobalRule(ruleData, userId);
-
-        res.status(201).json({
-            success: true,
-            data: newRule,
-            message: 'Global prompt rule created successfully'
-        });
-
-    } catch (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            return res.status(400).json({
-                success: false,
-                message: 'A rule with this name already exists'
-            });
-        }
-        throw error;
-    }
-}));
-
-/**
- * @route PUT /api/global-prompts/rules/:id
- * @desc Update a global prompt rule
- * @access Admin
- */
-router.put('/rules/:id', sanitizeInput, asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const {
-        rule_name,
-        rule_type,
-        category,
-        rule_content,
-        priority,
-        applies_to_personas,
-        applies_to_contexts,
-        conditions
-    } = req.body;
-
-    const userId = req.user?.id || 1;
-
-    const ruleData = {
-        rule_name,
-        rule_type,
-        category,
-        rule_content,
-        priority: parseInt(priority) || 100,
-        applies_to_personas: applies_to_personas || [],
-        applies_to_contexts: applies_to_contexts || [],
-        conditions: conditions || {}
-    };
-
-    const updatedRule = await globalPromptService.updateGlobalRule(id, ruleData, userId);
-
-    if (!updatedRule) {
-        return res.status(404).json({
-            success: false,
-            message: 'Rule not found'
-        });
-    }
-
-    res.json({
-        success: true,
-        data: updatedRule,
-        message: 'Global prompt rule updated successfully'
+  } catch (error) {
+    console.error('Error fetching global prompt config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch global prompt configuration',
+      error: error.message
     });
-}));
+  }
+});
 
 /**
- * @route DELETE /api/global-prompts/rules/:id
- * @desc Delete a global prompt rule
- * @access Admin
+ * PUT /api/admin/global-prompt
+ * Update the global prompt configuration
  */
-router.delete('/rules/:id', asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const userId = req.user?.id || 1;
+router.put('/', requireAuth, requireAdmin, async (req, res) => {
+  const client = await pool.connect();
 
-    await globalPromptService.deleteGlobalRule(id, userId);
+  try {
+    const { basePrompt, rules, variables } = req.body;
 
-    res.json({
-        success: true,
-        message: 'Global prompt rule deleted successfully'
-    });
-}));
-
-/**
- * @route POST /api/global-prompts/build
- * @desc Build a layered prompt using the 4-layer hierarchy
- * @access Public (would be auth protected in production)
- */
-router.post('/build', sanitizeInput, asyncHandler(async (req, res) => {
-    const {
-        user_prompt,
-        persona_id,
-        section_type,
-        document_type,
-        context_overrides
-    } = req.body;
-
-    if (!user_prompt) {
-        return res.status(400).json({
-            success: false,
-            message: 'user_prompt is required'
-        });
-    }
-
-    logger.info(`Building layered prompt for section: ${section_type}, persona: ${persona_id}`);
-
-    try {
-        const finalPrompt = await globalPromptService.buildLayeredPrompt(user_prompt, {
-            personaId: persona_id,
-            sectionType: section_type,
-            documentType: document_type,
-            contextOverrides: context_overrides || {}
-        });
-
-        res.json({
-            success: true,
-            data: {
-                final_prompt: finalPrompt,
-                layers_applied: {
-                    global_rules: true,
-                    persona: !!persona_id,
-                    context_guidance: !!section_type,
-                    user_prompt: true
-                },
-                metadata: {
-                    section_type: section_type,
-                    document_type: document_type,
-                    persona_id: persona_id,
-                    prompt_length: finalPrompt.length,
-                    generated_at: new Date().toISOString()
-                }
-            }
-        });
-
-    } catch (error) {
-        logger.error(`Error building layered prompt: ${error.message}`);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to build layered prompt',
-            error: error.message
-        });
-    }
-}));
-
-/**
- * @route GET /api/global-prompts/context-guidance
- * @desc Get context guidance rules
- * @access Public
- */
-router.get('/context-guidance', asyncHandler(async (req, res) => {
-    const { context_type, section_type } = req.query;
-
-    const contextGuidance = await globalPromptService.getContextGuidance({
-        contextType: context_type,
-        sectionType: section_type
+    // Validate the configuration
+    const validation = promptCompiler.validateConfig({
+      base_prompt: basePrompt,
+      rules,
+      variables
     });
 
-    res.json({
-        success: true,
-        data: {
-            guidance: contextGuidance,
-            total: contextGuidance.length
-        }
-    });
-}));
-
-/**
- * @route POST /api/global-prompts/context-guidance
- * @desc Create new context guidance
- * @access Admin
- */
-router.post('/context-guidance', sanitizeInput, asyncHandler(async (req, res) => {
-    const {
-        context_name,
-        context_type,
-        guidance_content,
-        section_types,
-        document_types,
-        priority,
-        prerequisites
-    } = req.body;
-
-    if (!context_name || !context_type || !guidance_content) {
-        return res.status(400).json({
-            success: false,
-            message: 'context_name, context_type, and guidance_content are required'
-        });
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid configuration',
+        errors: validation.errors
+      });
     }
 
-    try {
-        const userId = req.user?.id || 1;
+    await client.query('BEGIN');
 
-        const client = await globalPromptService.pool.connect();
-        try {
-            const result = await client.query(`
-                INSERT INTO context_guidance (
-                    context_name, context_type, guidance_content, section_types,
-                    document_types, priority, prerequisites, created_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                RETURNING *
-            `, [
-                context_name,
-                context_type,
-                guidance_content,
-                section_types || [],
-                document_types || [],
-                parseInt(priority) || 100,
-                JSON.stringify(prerequisites || {}),
-                userId
-            ]);
+    // Check if config exists
+    const existingConfig = await client.query(
+      'SELECT id FROM global_prompt_config WHERE is_active = true LIMIT 1'
+    );
 
-            // Clear cache
-            globalPromptService.clearCache();
+    let result;
 
-            res.status(201).json({
-                success: true,
-                data: result.rows[0],
-                message: 'Context guidance created successfully'
-            });
-
-        } finally {
-            client.release();
-        }
-
-    } catch (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            return res.status(400).json({
-                success: false,
-                message: 'Context guidance with this name already exists'
-            });
-        }
-        throw error;
-    }
-}));
-
-/**
- * @route GET /api/global-prompts/categories
- * @desc Get available rule categories and types
- * @access Public
- */
-router.get('/categories', asyncHandler(async (req, res) => {
-    const categories = {
-        rule_types: [
-            { value: 'positive_directive', label: 'Positive Directive', description: 'Instructions on what to do' },
-            { value: 'negative_constraint', label: 'Negative Constraint', description: 'Restrictions on what not to do' },
-            { value: 'contextual_behavior', label: 'Contextual Behavior', description: 'Adaptive behavior based on context' }
-        ],
-        categories: [
-            { value: 'tone', label: 'Tone & Voice', description: 'Writing tone and communication style' },
-            { value: 'compliance', label: 'Compliance', description: 'Regulatory and requirement adherence' },
-            { value: 'accuracy', label: 'Accuracy', description: 'Factual correctness and evidence' },
-            { value: 'formatting', label: 'Formatting', description: 'Document structure and presentation' },
-            { value: 'security', label: 'Security', description: 'Information security and classification' }
-        ],
-        context_types: [
-            { value: 'document_section', label: 'Document Section', description: 'Guidance for specific document sections' },
-            { value: 'task_type', label: 'Task Type', description: 'Guidance for different types of writing tasks' },
-            { value: 'domain_specific', label: 'Domain Specific', description: 'Industry or domain-specific guidance' }
+    if (existingConfig.rows.length > 0) {
+      // Update existing config
+      result = await client.query(
+        `UPDATE global_prompt_config
+         SET base_prompt = $1,
+             rules = $2,
+             variables = $3,
+             updated_by = $4,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5
+         RETURNING *`,
+        [
+          basePrompt,
+          JSON.stringify(rules),
+          JSON.stringify(variables),
+          req.user.id,
+          existingConfig.rows[0].id
         ]
+      );
+    } else {
+      // Insert new config
+      result = await client.query(
+        `INSERT INTO global_prompt_config (base_prompt, rules, variables, updated_by, is_active)
+         VALUES ($1, $2, $3, $4, true)
+         RETURNING *`,
+        [
+          basePrompt,
+          JSON.stringify(rules),
+          JSON.stringify(variables),
+          req.user.id
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Global prompt configuration updated successfully',
+      data: {
+        basePrompt: result.rows[0].base_prompt,
+        rules: result.rows[0].rules,
+        variables: result.rows[0].variables,
+        version: result.rows[0].version,
+        lastUpdated: result.rows[0].updated_at
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating global prompt config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update global prompt configuration',
+      error: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * POST /api/admin/global-prompt/preview
+ * Preview the compiled prompt with sample context
+ */
+router.post('/preview', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { config, context } = req.body;
+
+    // Use provided config or fetch current
+    const configToUse = config || await promptCompiler.getActiveConfig();
+
+    // Compile the prompt with context
+    const compiledPrompt = await promptCompiler.compileGlobalPrompt(
+      configToUse,
+      context || {}
+    );
+
+    // Also test with sample data if no context provided
+    const samplePrompt = !context
+      ? await promptCompiler.testCompilation(configToUse)
+      : null;
+
+    res.json({
+      success: true,
+      data: {
+        compiledPrompt,
+        samplePrompt,
+        variablesResolved: context || {}
+      }
+    });
+  } catch (error) {
+    console.error('Error previewing prompt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to preview prompt',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/admin/global-prompt/defaults
+ * Get the default prompt configuration
+ */
+router.get('/defaults', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const defaultConfig = {
+      basePrompt: 'You are a professional government proposal writer. Write in clear, concise, and compelling prose that demonstrates understanding of government requirements and evaluation criteria. Focus on tangible benefits, proven methodologies, and measurable outcomes. Maintain a confident, authoritative tone while being accessible to both technical and non-technical evaluators.',
+      rules: [
+        {
+          id: 'rule-1',
+          type: 'style',
+          rule: 'Use active voice exclusively',
+          enabled: true,
+          order: 1
+        },
+        {
+          id: 'rule-2',
+          type: 'formatting',
+          rule: 'Spell out all acronyms on first use, followed by the acronym in parentheses',
+          enabled: true,
+          order: 2
+        },
+        {
+          id: 'rule-3',
+          type: 'style',
+          rule: 'Limit sentences to 20 words maximum for clarity',
+          enabled: true,
+          order: 3
+        },
+        {
+          id: 'rule-4',
+          type: 'forbidden',
+          rule: 'Never use business jargon or buzzwords',
+          words: ['leverage', 'utilize', 'synergize', 'ideate', 'paradigm', 'holistic'],
+          enabled: true,
+          order: 4
+        }
+      ],
+      variables: [
+        {
+          key: '{{AGENCY_NAME}}',
+          description: 'The contracting agency name',
+          source: 'project',
+          default: 'the agency',
+          system: true
+        },
+        {
+          key: '{{PROJECT_NAME}}',
+          description: 'Current project or proposal name',
+          source: 'project',
+          default: 'this project',
+          system: true
+        },
+        {
+          key: '{{CONTRACT_NUMBER}}',
+          description: 'RFP/RFQ/Contract number',
+          source: 'project',
+          default: '',
+          system: true
+        }
+      ]
     };
 
     res.json({
-        success: true,
-        data: categories
+      success: true,
+      data: defaultConfig
     });
-}));
+  } catch (error) {
+    console.error('Error fetching defaults:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch default configuration',
+      error: error.message
+    });
+  }
+});
 
 /**
- * @route POST /api/global-prompts/validate
- * @desc Validate a rule for conflicts before creation
- * @access Admin
+ * GET /api/admin/global-prompt/history
+ * Get the configuration change history
  */
-router.post('/validate', sanitizeInput, asyncHandler(async (req, res) => {
-    const ruleData = req.body;
+router.get('/history', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
 
-    const validation = await globalPromptService.validateRuleForConflicts(ruleData);
+    const result = await pool.query(
+      `SELECT
+        h.*,
+        u.full_name as changed_by_name
+      FROM global_prompt_config_history h
+      LEFT JOIN users u ON h.changed_by = u.id
+      ORDER BY h.changed_at DESC
+      LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
 
     res.json({
-        success: true,
-        data: validation
+      success: true,
+      data: result.rows.map(row => ({
+        id: row.id,
+        configId: row.config_id,
+        basePrompt: row.base_prompt,
+        rules: row.rules,
+        variables: row.variables,
+        version: row.version,
+        changedBy: row.changed_by_name,
+        changedAt: row.changed_at,
+        changeReason: row.change_reason
+      })),
+      total: result.rowCount
     });
-}));
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch configuration history',
+      error: error.message
+    });
+  }
+});
 
 /**
- * @route POST /api/global-prompts/clear-cache
- * @desc Clear the rule cache (admin utility)
- * @access Admin
+ * POST /api/admin/global-prompt/test
+ * Test the prompt with actual AI (limited for safety)
  */
-router.post('/clear-cache', asyncHandler(async (req, res) => {
-    globalPromptService.clearCache();
+router.post('/test', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { sampleText, useCurrentConfig } = req.body;
+
+    if (!sampleText || sampleText.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sample text is required and must be less than 500 characters'
+      });
+    }
+
+    // Get config to use
+    const config = useCurrentConfig
+      ? await promptCompiler.getActiveConfig()
+      : req.body.config;
+
+    // Compile the prompt
+    const compiledPrompt = await promptCompiler.compileGlobalPrompt(config);
+
+    // Here you would normally call your AI service
+    // For now, return a mock response showing what would be sent
+    res.json({
+      success: true,
+      data: {
+        prompt: compiledPrompt,
+        sampleText,
+        // This would be the AI response in production
+        mockResponse: 'This is where the AI response would appear, following all the configured rules and standards.',
+        note: 'AI integration pending - showing compiled prompt only'
+      }
+    });
+  } catch (error) {
+    console.error('Error testing prompt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test prompt',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/admin/global-prompt/compile
+ * Compile prompt for internal use by AI services
+ * This endpoint is for system use, not admin UI
+ */
+router.post('/compile', requireAuth, async (req, res) => {
+  try {
+    const { context } = req.body;
+
+    // Check if global prompt should be applied
+    if (!promptCompiler.shouldApplyGlobalPrompt(context)) {
+      return res.json({
+        success: true,
+        data: {
+          prompt: null,
+          applied: false,
+          reason: 'Global prompt not applicable for this context type'
+        }
+      });
+    }
+
+    // Get active config and compile
+    const config = await promptCompiler.getActiveConfig();
+    const compiledPrompt = await promptCompiler.compileGlobalPrompt(config, context);
 
     res.json({
-        success: true,
-        message: 'Rule cache cleared successfully'
+      success: true,
+      data: {
+        prompt: compiledPrompt,
+        applied: true,
+        version: config.version
+      }
     });
-}));
+  } catch (error) {
+    console.error('Error compiling prompt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to compile prompt',
+      error: error.message
+    });
+  }
+});
 
 module.exports = router;

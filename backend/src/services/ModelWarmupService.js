@@ -13,10 +13,10 @@ class ModelWarmupService {
     this.warmupQueue = new Set(); // Track models currently being warmed up
     this.defaultModel = process.env.OLLAMA_MODEL || 'gemma2:9b';
 
-    // Configuration
+    // Configuration - Optimized for better performance
     this.warmupTimeout = 30000; // 30 second timeout for warmup operations
-    this.cacheExpiry = 10 * 60 * 1000; // 10 minutes - how long to consider a model "warm"
-    this.maxConcurrentWarmups = 2; // Limit concurrent warm-ups to prevent resource exhaustion
+    this.cacheExpiry = 30 * 60 * 1000; // Extended to 30 minutes - how long to consider a model "warm"
+    this.maxConcurrentWarmups = 4; // Increased from 2 to 4 for faster parallel warm-ups
 
     // Warm-up test prompts (lightweight)
     this.testPrompts = {
@@ -38,6 +38,11 @@ class ModelWarmupService {
     setInterval(() => {
       this.cleanupExpiredCache();
     }, 2 * 60 * 1000); // Every 2 minutes
+
+    // Set up keep-alive for warm models
+    setInterval(() => {
+      this.keepModelsAlive();
+    }, 8 * 60 * 1000); // Every 8 minutes - prevents models from going cold
   }
 
   /**
@@ -386,6 +391,69 @@ class ModelWarmupService {
         warmupTimeout: this.warmupTimeout / 1000 // in seconds
       }
     };
+  }
+
+  /**
+   * Keep warm models alive with lightweight ping
+   * Prevents models from going cold during active sessions
+   */
+  async keepModelsAlive() {
+    const activeModels = [];
+    const now = Date.now();
+
+    // Find models that are still considered warm
+    this.warmupCache.forEach((data, model) => {
+      if (data.timestamp && (now - data.timestamp) < this.cacheExpiry) {
+        activeModels.push(model);
+      }
+    });
+
+    if (activeModels.length === 0) {
+      logger.debug('No warm models to keep alive');
+      return;
+    }
+
+    logger.info(`Keep-alive ping for ${activeModels.length} warm models`);
+
+    // Send lightweight ping to each warm model
+    for (const model of activeModels) {
+      try {
+        // Skip if model is already being warmed
+        if (this.warmupQueue.has(model)) {
+          continue;
+        }
+
+        // Send minimal inference to keep model loaded in memory
+        const response = await axios.post(
+          `${this.ollamaUrl}/api/generate`,
+          {
+            model: model,
+            prompt: ".",
+            stream: false,
+            options: {
+              num_predict: 1,
+              temperature: 0
+            }
+          },
+          {
+            timeout: 5000 // 5 second timeout for keep-alive
+          }
+        );
+
+        if (response.status === 200) {
+          // Update timestamp to keep model marked as warm
+          this.warmupCache.set(model, {
+            status: 'warm',
+            timestamp: Date.now(),
+            success: true
+          });
+          logger.debug(`Keep-alive successful for model: ${model}`);
+        }
+      } catch (error) {
+        logger.warn(`Keep-alive failed for model ${model}: ${error.message}`);
+        // Don't remove from cache - will be cleaned up naturally if expired
+      }
+    }
   }
 }
 

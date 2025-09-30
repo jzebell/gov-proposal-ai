@@ -7,6 +7,7 @@ const axios = require('axios');
 const logger = require('../utils/logger');
 const PersonasService = require('./PersonasService');
 const ContextService = require('./ContextService');
+const PromptCompilerService = require('./PromptCompilerService');
 
 class AIWritingService {
   constructor() {
@@ -14,6 +15,7 @@ class AIWritingService {
     this.defaultModel = process.env.OLLAMA_MODEL || 'gemma2:9b';
     this.personasService = new PersonasService();
     this.contextService = new ContextService();
+    this.promptCompiler = new PromptCompilerService();
   }
 
   /**
@@ -91,7 +93,12 @@ class AIWritingService {
         logger.info(`Using RAG mode with ${contextData.documentCount || 0} documents`);
       } else if (contextData && !requirements.noHallucinations) {
         // Augmented mode - use documents to inform creative writing
-        systemPrompt = await this.getPersonaSystemPrompt(requirements.personaId);
+        const promptContext = {
+          project: requirements.projectContext || {},
+          user: requirements.user || {},
+          customVariables: requirements.customVariables || {}
+        };
+        systemPrompt = await this.getPersonaSystemPrompt(requirements.personaId, promptContext);
 
         // Add context as reference material
         const documentContext = this.buildContextString(contextData);
@@ -104,7 +111,12 @@ class AIWritingService {
         logger.info(`Using augmented mode with ${contextData.documentCount || 0} documents`);
       } else {
         // Normal mode - persona only, no context
-        systemPrompt = await this.getPersonaSystemPrompt(requirements.personaId);
+        const promptContext = {
+          project: requirements.projectContext || {},
+          user: requirements.user || {},
+          customVariables: requirements.customVariables || {}
+        };
+        systemPrompt = await this.getPersonaSystemPrompt(requirements.personaId, promptContext);
         finalPrompt = prompt;
 
         logger.info(`Using normal mode without context`);
@@ -295,9 +307,9 @@ Keep it concise but comprehensive (2-3 paragraphs).
   }
 
   /**
-   * Get system prompt from persona
+   * Get system prompt from persona with global prompt prepended
    */
-  async getPersonaSystemPrompt(personaId) {
+  async getPersonaSystemPrompt(personaId, context = {}) {
     try {
       let persona;
 
@@ -313,11 +325,43 @@ Keep it concise but comprehensive (2-3 paragraphs).
 
       if (!persona) {
         logger.error('No default persona found, using fallback');
-        return 'You are an expert government proposal writer with deep knowledge of federal acquisition requirements and evaluation criteria. Write professional, compliant, and persuasive content.';
+        persona = {
+          display_name: 'Default',
+          system_prompt: 'You are an expert government proposal writer with deep knowledge of federal acquisition requirements and evaluation criteria. Write professional, compliant, and persuasive content.'
+        };
       }
 
       logger.info(`Using persona: ${persona.display_name}`);
-      return persona.system_prompt;
+
+      // Get and compile global prompt for creative writing
+      let globalPrompt = '';
+      try {
+        const globalConfig = await this.promptCompiler.getActiveConfig();
+        if (globalConfig && globalConfig.is_active) {
+          // Build context for variable replacement
+          const promptContext = {
+            project: context.project || {},
+            user: context.user || {},
+            type: 'creative', // Mark as creative writing
+            customVariables: context.customVariables || {}
+          };
+
+          // Only apply global prompt to creative writing (not strict RAG)
+          if (this.promptCompiler.shouldApplyGlobalPrompt(promptContext)) {
+            globalPrompt = await this.promptCompiler.compileGlobalPrompt(globalConfig, promptContext);
+            logger.info('Applied global prompt configuration to creative writing');
+          }
+        }
+      } catch (error) {
+        logger.warn(`Could not load global prompt config: ${error.message}`);
+      }
+
+      // Combine global prompt with persona prompt
+      if (globalPrompt) {
+        return `${globalPrompt}\n\n${persona.system_prompt}`;
+      } else {
+        return persona.system_prompt;
+      }
     } catch (error) {
       logger.error(`Error getting persona system prompt: ${error.message}`);
       // Fallback to basic prompt if persona service fails

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const ComplianceManager = ({ theme }) => {
   const [activeTab, setActiveTab] = useState('extract');
@@ -11,8 +12,6 @@ const ComplianceManager = ({ theme }) => {
   const [templates, setTemplates] = useState({});
   const [healthStatus, setHealthStatus] = useState(null);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
   useEffect(() => {
     loadFrameworks();
     loadTemplates();
@@ -22,7 +21,7 @@ const ComplianceManager = ({ theme }) => {
 
   const loadFrameworks = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/frameworks`);
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/frameworks`);
       const data = await response.json();
       if (data.success) {
         setFrameworks(data.data.frameworks);
@@ -34,7 +33,7 @@ const ComplianceManager = ({ theme }) => {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/templates`);
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/templates`);
       const data = await response.json();
       if (data.success) {
         setTemplates(data.data);
@@ -46,7 +45,7 @@ const ComplianceManager = ({ theme }) => {
 
   const checkHealth = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/health`);
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/health`);
       const data = await response.json();
       if (data.success) {
         setHealthStatus(data.data);
@@ -108,7 +107,7 @@ C.1.5 DOCUMENTATION REQUIREMENTS
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/extract-requirements`, {
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/extract-requirements`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +141,7 @@ C.1.5 DOCUMENTATION REQUIREMENTS
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/compliance-matrix`, {
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/compliance-matrix`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +175,7 @@ C.1.5 DOCUMENTATION REQUIREMENTS
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/risk-assessment`, {
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/risk-assessment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +209,7 @@ C.1.5 DOCUMENTATION REQUIREMENTS
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/compliance/quick-scan`, {
+      const response = await fetch(`${API_ENDPOINTS.COMPLIANCE}/quick-scan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

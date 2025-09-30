@@ -9,11 +9,7 @@ const logger = require('../utils/logger');
 class ProjectService {
   constructor(pool) {
     this.pool = pool || new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      database: process.env.DB_NAME || 'govai',
-      user: process.env.DB_USER || 'govaiuser',
-      password: process.env.DB_PASSWORD || 'password'
+      connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'govaiuser'}:${process.env.DB_PASSWORD || 'devpass123'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'govai'}`
     });
   }
 

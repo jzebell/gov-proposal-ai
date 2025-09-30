@@ -22,6 +22,7 @@ const contextRouter = require('./routes/context');
 const citationsRouter = require('./routes/citations');
 const analyticsRouter = require('./routes/analytics');
 const documentTypesRouter = require('./routes/documentTypes');
+const uploadDefaultsRouter = require('./routes/uploadDefaults');
 const AuthService = require('./services/AuthService');
 const GlobalPromptService = require('./services/GlobalPromptService');
 
@@ -31,9 +32,9 @@ const GlobalPromptService = require('./services/GlobalPromptService');
 
 
 // --- Configuration ---
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const PG_CONFIG = {
-    connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'govaiuser'}:${process.env.DB_PASSWORD || 'password'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'govai'}`,
+    connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER || 'govaiuser'}:${process.env.DB_PASSWORD || 'devpass123'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'govai'}`,
 };
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 
@@ -85,6 +86,7 @@ app.use('/api/context', contextRouter);
 app.use('/api/citations', citationsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/document-types', documentTypesRouter);
+app.use('/api/upload-defaults', uploadDefaultsRouter);
 
 // --- Health Check Endpoint ---
 app.get('/health', async (req, res) => {

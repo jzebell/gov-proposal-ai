@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
-const TeamManagement = ({ project, isOpen, onClose, theme }) => {
+const TeamManagement = ({ project, isOpen, onClose, theme, user, isAdmin }) => {
   const [teamMembers, setTeamMembers] = useState([]);
   const [availableRoles, setAvailableRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +22,6 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
-
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   // Mock users for demonstration - in production this would come from user management API
   const mockUsers = [
@@ -46,12 +45,12 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
     setLoading(true);
     try {
       // Load team members
-      const teamResponse = await fetch(`${apiUrl}/api/projects/${project.id}/team`, {
+      const teamResponse = await fetch(`${API_ENDPOINTS.PROJECTS}/${project.id}/team`, {
         credentials: 'include'
       });
 
       // Load available roles
-      const rolesResponse = await fetch(`${apiUrl}/api/projects/roles`, {
+      const rolesResponse = await fetch(`${API_ENDPOINTS.PROJECTS}/roles`, {
         credentials: 'include'
       });
 
@@ -128,7 +127,7 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
     try {
       const selectedRole = availableRoles.find(role => role.id === parseInt(newMemberForm.roleId));
 
-      const response = await fetch(`${apiUrl}/api/projects/${project.id}/team`, {
+      const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${project.id}/team`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -192,7 +191,7 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
     }
 
     try {
-      const response = await fetch(`${apiUrl}/api/projects/${project.id}/team/${memberId}`, {
+      const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${project.id}/team/${memberId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -357,24 +356,27 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
 
           {/* Add Member Button */}
           <div style={{ marginBottom: '24px' }}>
-            <button
-              onClick={() => setShowAddMemberModal(true)}
-              style={{
-                backgroundColor: theme.primary,
-                color: 'white',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '14px',
-                fontWeight: '600'
-              }}
-            >
-              👥 Add Team Member
-            </button>
+            {/* Only show Add Team Member(s) button for admins or project owner */}
+            {(isAdmin || (user && project?.owner?.id === user.id)) && (
+              <button
+                onClick={() => setShowAddMemberModal(true)}
+                style={{
+                  backgroundColor: theme.primary,
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                👥 Add Team Member(s)
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -558,7 +560,7 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h3 style={{ margin: 0, color: theme.text }}>Add Team Member</h3>
+              <h3 style={{ margin: 0, color: theme.text }}>Add Team Member(s)</h3>
               <button
                 onClick={() => setShowAddMemberModal(false)}
                 style={{
@@ -723,7 +725,7 @@ const TeamManagement = ({ project, isOpen, onClose, theme }) => {
                     fontWeight: '600'
                   }}
                 >
-                  {addingMember ? 'Adding...' : 'Add Team Member'}
+                  {addingMember ? 'Adding...' : 'Add Team Member(s)'}
                 </button>
               )}
             </div>

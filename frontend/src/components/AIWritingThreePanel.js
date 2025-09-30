@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import UploadModal from './UploadModal';
+import { API_ENDPOINTS } from '../config/api';
 
 const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
   const { user: currentUser } = useAuth();
@@ -64,8 +65,6 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
   // Context state
   const [contextSummary, setContextSummary] = useState(null);
   const [loadingContext, setLoadingContext] = useState(false);
-
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
   // Notification helpers
   const showNotification = (message, type = 'info') => {
@@ -167,7 +166,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
   const handleProjectSave = async () => {
     try {
       // TODO: Implement API call to save project changes
-      console.log('Saving project changes:', editableProject);
+      // Project changes: editableProject
 
       // For now, just show a notification
       setNotification({
@@ -350,7 +349,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
   const loadAvailableModels = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/models`);
+      const response = await fetch('/api/ai-writing/models');
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data && Array.isArray(data.data.models)) {
@@ -385,7 +384,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       // If API fails or returns invalid data, use fallback
       throw new Error('API returned invalid data or failed');
     } catch (error) {
-      console.log('Using fallback models (API not available):', error.message);
+      // Using fallback models (API not available)
       // Fallback models if API fails - prioritize gemma2:9b
       const fallbackModels = [
         {
@@ -413,13 +412,13 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       setAvailableModels(fallbackModels);
       // Default to gemma2:9b even in fallback mode
       setSelectedModel('gemma2:9b');
-      console.log('Fallback mode: Default model set to gemma2:9b');
+      // Fallback mode: Default model set to gemma2:9b
     }
   };
 
   const loadAvailablePersonas = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/personas/dropdown`);
+      const response = await fetch('/api/personas/dropdown');
 
       if (response.ok) {
         const data = await response.json();
@@ -437,7 +436,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         }
       }
     } catch (error) {
-      console.error('Error loading personas:', error);
+      // Error loading personas - using defaults
       // Set fallback to empty array
       setAvailablePersonas([]);
     }
@@ -445,14 +444,14 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
   const checkAIHealth = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/health`);
+      const response = await fetch('/api/ai-writing/health');
       const data = await response.json();
       if (data.success) {
         setAiHealth(data.data);
         if (onAiHealthChange) onAiHealthChange(data.data);
       }
     } catch (error) {
-      console.error('Error checking AI health:', error);
+      // Error checking AI health - using offline status
       const healthData = { available: false, error: error.message };
       setAiHealth(healthData);
       if (onAiHealthChange) onAiHealthChange(healthData);
@@ -486,7 +485,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         params.append('searchTerm', documentFilters.searchTerm);
       }
 
-      const url = `${apiUrl}/api/documents/list?${params.toString()}`;
+      const url = `/api/documents/list?${params.toString()}`;
 
       const response = await fetch(url);
       if (response.ok) {
@@ -559,14 +558,14 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         }
       } else if (response.status === 404) {
         // Project documents endpoint not found - this is expected if backend doesn't have this endpoint yet
-        console.log('Document list API not available yet, using empty document list');
+        // Document list API not available yet, using empty document list
         setProjectDocuments([]);
       } else {
-        console.error('Error loading project documents:', response.status, response.statusText);
+        // Error loading project documents - response not ok
         setProjectDocuments([]);
       }
     } catch (error) {
-      console.error('Error loading project documents:', error);
+      // Error loading project documents
       setProjectDocuments([]);
     } finally {
       setLoadingDocuments(false);
@@ -581,7 +580,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       // Use the document's actual category instead of project's documentType
       const documentCategory = document.category || 'solicitations';
       // API call to get document content
-      const response = await fetch(`${apiUrl}/api/documents/content/${documentCategory}/${selectedProject.title}/${encodeURIComponent(document.originalName || document.filename)}`);
+      const response = await fetch(`/api/documents/content/${documentCategory}/${selectedProject.title}/${encodeURIComponent(document.originalName || document.filename)}`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -605,7 +604,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         });
       }
     } catch (error) {
-      console.error('Error loading document content:', error);
+      // Error loading document content
       setSelectedDocumentContent({
         ...document,
         content: 'Error loading document content: ' + error.message,
@@ -623,7 +622,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
     try {
       setLoadingContext(true);
       const encodedProject = encodeURIComponent(projectName);
-      const response = await fetch(`${apiUrl}/api/context/summary/${encodedProject}/${documentType}`);
+      const response = await fetch(`/api/context/summary/${encodedProject}/${documentType}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -631,11 +630,11 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
           setContextSummary(data.data);
         }
       } else {
-        console.error('Failed to load context summary:', response.statusText);
+        // Failed to load context summary
         setContextSummary(null);
       }
     } catch (error) {
-      console.error('Error loading context summary:', error);
+      // Error loading context summary
       setContextSummary(null);
     } finally {
       setLoadingContext(false);
@@ -647,7 +646,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
     try {
       const encodedProject = encodeURIComponent(projectName);
-      const response = await fetch(`${apiUrl}/api/context/${encodedProject}/${documentType}`, {
+      const response = await fetch(`/api/context/${encodedProject}/${documentType}`, {
         method: 'GET'
       });
 
@@ -659,7 +658,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         }
       }
     } catch (error) {
-      console.error('Error triggering context build:', error);
+      // Error triggering context build
     }
   };
 
@@ -755,7 +754,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
     setGeneratedContent('Generating content with AI...');
 
     try {
-      const response = await fetch(`${apiUrl}/api/ai-writing/generate`, {
+      const response = await fetch('/api/ai-writing/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -791,7 +790,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
   const handleArchiveDocument = async (documentId, action) => {
     try {
       const endpoint = action === 'archive' ? 'archive' : 'unarchive';
-      const response = await fetch(`${apiUrl}/api/documents/${documentId}/${endpoint}`, {
+      const response = await fetch(`/api/documents/${documentId}/${endpoint}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -805,11 +804,11 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
         await loadProjectDocuments();
         showNotification(`Document ${action}d successfully`, 'success');
       } else {
-        console.error(`Failed to ${action} document:`, data.message);
+        // Failed to update document status
         showNotification(`Failed to ${action} document: ${data.message}`, 'error');
       }
     } catch (error) {
-      console.error(`Error ${action}ing document:`, error);
+      // Error updating document status
       showNotification(`Error ${action}ing document: ${error.message}`, 'error');
     }
   };
@@ -819,7 +818,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       'Are you sure you want to delete this document? This action cannot be undone.',
       async () => {
         try {
-          const response = await fetch(`${apiUrl}/api/documents/${documentId}`, {
+          const response = await fetch(`/api/documents/${documentId}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -838,11 +837,11 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
             }
             showNotification('Document deleted successfully', 'success');
           } else {
-            console.error('Failed to delete document:', data.message);
+            // Failed to delete document
             showNotification(`Failed to delete document: ${data.message}`, 'error');
           }
         } catch (error) {
-          console.error('Error deleting document:', error);
+          // Error deleting document
           showNotification(`Error deleting document: ${error.message}`, 'error');
         }
       }
@@ -860,7 +859,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
       for (const documentId of documentIds) {
         try {
-          const response = await fetch(`${apiUrl}/api/documents/${documentId}/archive`, {
+          const response = await fetch(`/api/documents/${documentId}/archive`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -884,7 +883,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       setSelectedDocuments(new Set());
 
       if (errors.length > 0) {
-        console.error('Bulk archive errors:', errors);
+        // Some documents failed to archive
         showNotification(`Some documents could not be archived:\n${errors.join('\n')}`, 'error');
       } else {
         showNotification(`Successfully archived ${documentIds.length} documents`, 'success');
@@ -903,7 +902,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
       for (const documentId of documentIds) {
         try {
-          const response = await fetch(`${apiUrl}/api/documents/${documentId}`, {
+          const response = await fetch(`/api/documents/${documentId}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -931,7 +930,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
       }
 
       if (errors.length > 0) {
-        console.error('Bulk delete errors:', errors);
+        // Some documents failed to delete
         showNotification(`Some documents could not be deleted:\n${errors.join('\n')}`, 'error');
       } else {
         showNotification(`Successfully deleted ${documentIds.length} documents`, 'success');
@@ -2839,7 +2838,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         fontSize: '14px',
                         color: theme.text,
                         backgroundColor: theme.surface,
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        boxSizing: 'border-box'
                       }}
                     />
                   ) : (
@@ -2885,7 +2885,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         fontWeight: '500',
                         minHeight: '60px',
                         resize: 'vertical',
-                        fontFamily: 'inherit'
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box'
                       }}
                       placeholder="Enter project description..."
                     />
@@ -2931,7 +2932,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         fontSize: '14px',
                         color: theme.text,
                         backgroundColor: theme.surface,
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        boxSizing: 'border-box'
                       }}
                     />
                   ) : (
@@ -2976,7 +2978,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         borderRadius: '4px',
                         fontSize: '14px',
                         color: theme.text,
-                        backgroundColor: theme.surface
+                        backgroundColor: theme.surface,
+                        boxSizing: 'border-box'
                       }}
                     >
                       <option value="">Select Owner</option>
@@ -3054,7 +3057,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         fontSize: '14px',
                         color: theme.text,
                         backgroundColor: theme.surface,
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        boxSizing: 'border-box'
                       }}
                     >
                       <option value="active">Active</option>
@@ -3104,7 +3108,8 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
                         fontSize: '14px',
                         color: theme.text,
                         backgroundColor: theme.surface,
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        boxSizing: 'border-box'
                       }}
                       placeholder="e.g., $500,000"
                     />

@@ -17,7 +17,8 @@
       "Bash(docker-compose build:*)",
       "Bash(docker cp:*)",
       "Bash(docker-compose:*)",
-      "Bash(winpty docker exec:*)"
+      "Bash(winpty docker exec:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

@@ -9,6 +9,7 @@ import ComplianceManager from './ComplianceManager';
 import ProjectCard from './ProjectCard';
 import UserPreferences from './UserPreferences';
 import AdminSettings from './AdminSettings';
+import { API_ENDPOINTS } from '../config/api';
 
 const Layout = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -126,13 +127,11 @@ const Layout = () => {
     }
   }, [activeTab]);
 
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
   const loadProjects = async () => {
     setLoadingProjects(true);
     try {
       // Use the new enhanced project API
-      const response = await fetch(`${apiUrl}/api/projects`, {
+      const response = await fetch(API_ENDPOINTS.PROJECTS, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +198,7 @@ const Layout = () => {
       let supportedDocTypes = ['solicitations'];
 
       try {
-        const structureResponse = await fetch(`${apiUrl}/api/documents/structure`);
+        const structureResponse = await fetch('/api/documents/structure');
         if (structureResponse.ok) {
           const structureResult = await structureResponse.json();
           if (structureResult.data && structureResult.data.documentTypes) {
@@ -214,7 +213,7 @@ const Layout = () => {
 
       for (const docType of supportedDocTypes) {
         try {
-          const response = await fetch(`${apiUrl}/api/documents/projects?documentType=${docType}`, {
+          const response = await fetch(`${API_ENDPOINTS.PROJECTS_LIST}?documentType=${docType}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -473,7 +472,7 @@ const Layout = () => {
       }
 
       // Try to make the API call
-      const response = await fetch(`${apiUrl}/api/projects/${project.id}/archive`, {
+      const response = await fetch(`${API_ENDPOINTS.PROJECTS}/${project.id}/archive`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1444,7 +1443,7 @@ const Layout = () => {
                     onProjectClick={handleProjectClick}
                     onManageTeam={handleManageTeam}
                     onArchive={handleArchiveProject}
-                    isAdmin={isAdmin}
+                    isAdmin={isAdmin()}
                   />
                 ))}
               </div>
@@ -1645,7 +1644,7 @@ const Layout = () => {
                   fontSize: '12px',
                   color: currentTheme.textSecondary
                 }}>
-                  AI Assistant
+                  AI Proposal Assistant
                 </div>
               </div>
             </>
@@ -1924,6 +1923,67 @@ const Layout = () => {
                 <span>{aiHealth.available ? '✅' : '❌'}</span>
                 <span>{aiHealth.available ? 'AI Online' : 'AI Offline'}</span>
               </div>
+            )}
+            {/* Info Button - styled like MORE INFO button */}
+            {activeTab === 'ai-writing' && (
+              <button
+                onClick={() => {
+                  const event = new CustomEvent('toggleRightPanel');
+                  window.dispatchEvent(event);
+                }}
+                style={{
+                  backgroundColor: '#1976d2',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 24px',
+                  paddingRight: '52px',
+                  borderRadius: '30px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  position: 'relative',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 6px rgba(25, 118, 210, 0.3)',
+                  height: '42px',
+                  minWidth: '120px',
+                  letterSpacing: '1px',
+                  marginRight: '8px',
+                  textTransform: 'uppercase'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1565c0';
+                  e.currentTarget.style.boxShadow = '0 4px 10px rgba(25, 118, 210, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1976d2';
+                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(25, 118, 210, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                title="Toggle project details"
+              >
+                <span>INFO</span>
+                {/* Circle with arrow icon */}
+                <div style={{
+                  position: 'absolute',
+                  right: '6px',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  border: '2px solid #ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'transparent'
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </button>
             )}
             <button
               onClick={() => setShowApiExplorer(!showApiExplorer)}
@@ -2433,6 +2493,8 @@ const Layout = () => {
         onClose={() => setShowTeamManagement(false)}
         project={selectedTeamProject}
         theme={currentTheme}
+        user={user}
+        isAdmin={isAdmin()}
       />
 
       {/* Notification Toast */}

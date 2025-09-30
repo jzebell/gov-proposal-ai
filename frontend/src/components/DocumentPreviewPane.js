@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const DocumentPreviewPane = ({
   isOpen,
@@ -9,7 +10,7 @@ const DocumentPreviewPane = ({
   projectName,
   onNavigateChunk,
   className = '',
-  apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001'
+  apiUrl = API_BASE_URL
 }) => {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
