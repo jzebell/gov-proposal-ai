@@ -315,16 +315,16 @@ class ProjectService {
       const query = `
         SELECT
           p.*,
-          u1.name as owner_name,
-          u2.name as archived_by_name,
+          u1.full_name as owner_name,
+          u2.full_name as archived_by_name,
           COUNT(pt.id) as team_count
         FROM projects p
-        LEFT JOIN users u1 ON p.owner_id = u1.id
+        LEFT JOIN users u1 ON p.created_by = u1.id
         LEFT JOIN users u2 ON p.archived_by = u2.id
-        LEFT JOIN project_team pt ON p.id = pt.project_id
+        LEFT JOIN project_team_members pt ON p.id = pt.project_id
         WHERE p.archived_at IS NOT NULL
           AND p.archived_at >= CURRENT_TIMESTAMP - INTERVAL '${days} days'
-        GROUP BY p.id, u1.name, u2.name
+        GROUP BY p.id, u1.full_name, u2.full_name
         ORDER BY ${finalSortBy} ${finalSortOrder}
         LIMIT $1 OFFSET $2
       `;

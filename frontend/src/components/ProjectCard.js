@@ -183,22 +183,24 @@ const ProjectCard = ({
       </div>
 
       {/* Card Content */}
-      <div style={{ padding: '16px' }}>
-        {/* Project Title */}
-        <h3 style={{
-          margin: '0 0 8px 0',
-          fontSize: '16px',
-          fontWeight: '600',
-          color: theme.text,
-          lineHeight: '1.4',
-          height: '44.8px', // Reserve space for exactly 2 lines (16px * 1.4 * 2)
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden'
-        }}>
-          {title}
-        </h3>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column' }}>
+        {/* Content wrapper with flex-grow to push buttons to bottom */}
+        <div style={{ flex: 1, minHeight: '240px' }}>
+          {/* Project Title */}
+          <h3 style={{
+            margin: '0 0 8px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            color: theme.text,
+            lineHeight: '1.4',
+            height: '44.8px', // Reserve space for exactly 2 lines (16px * 1.4 * 2)
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}>
+            {title}
+          </h3>
 
         {/* Agency & Department */}
         {(agency || department) && (
@@ -420,73 +422,19 @@ const ProjectCard = ({
             )}
           </div>
         )}
+        </div>
+        {/* End of content wrapper */}
 
         {/* Quick Actions */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: isAdmin && onArchive ?
-            (teamSize > 1 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr') :
-            isAdmin && onEdit ?
-              (teamSize > 1 ? '1fr 1fr 1fr' : '1fr 1fr') :
-              (teamSize > 1 ? '1fr 1fr' : '1fr'),
+            (teamSize > 1 ? '1fr 1fr' : '1fr') :
+            (teamSize > 1 ? '1fr' : '1fr'),
           gap: '6px',
           paddingTop: '12px',
           borderTop: `1px solid ${theme.border}`
         }}>
-          <button style={{
-            padding: '6px 8px',
-            border: `1px solid ${theme.border}`,
-            backgroundColor: 'transparent',
-            color: theme.text,
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '11px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '3px'
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onView) onView(project);
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = theme.border}
-          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-          >
-            👁️ View
-          </button>
-
-          {isAdmin && onEdit && (
-            <button style={{
-              padding: '6px 8px',
-              border: `1px solid ${theme.primary}`,
-              backgroundColor: 'transparent',
-              color: theme.primary,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '3px'
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onProjectClick) onProjectClick(project);
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = theme.primary;
-              e.target.style.color = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = theme.primary;
-            }}
-            >
-              ✏️ Edit
-            </button>
-          )}
-
           {onManageTeam && (
             <button style={{
               padding: '6px 8px',

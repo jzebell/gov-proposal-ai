@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_BASE_URL } from '../config/api';
 
 /**
  * Custom hook for managing model warm-up functionality
@@ -48,7 +48,7 @@ const useModelWarmup = (options = {}) => {
   const getWarmupStatus = useCallback(async (modelName = null) => {
     try {
       const queryParam = modelName ? `?model=${encodeURIComponent(modelName)}` : '';
-      const response = await fetch(`/api/ai-writing/warmup/status${queryParam}`);
+      const response = await fetch(`${API_BASE_URL}/api/ai-writing/warmup/status${queryParam}`);
       const data = await response.json();
 
       if (data.success && isComponentMountedRef.current) {
@@ -62,8 +62,14 @@ const useModelWarmup = (options = {}) => {
             }
           }));
         } else {
-          // Update overall status
-          setWarmupStatus(data.data);
+          // Update overall status - backend returns { models: {...}, overallStatus: {...} }
+          const overallStatus = data.data?.overallStatus || {};
+          setWarmupStatus(prev => ({
+            isSystemWarming: overallStatus.isSystemWarming ?? prev.isSystemWarming ?? false,
+            activeWarmups: overallStatus.activeWarmups ?? prev.activeWarmups ?? 0,
+            warmModelCount: overallStatus.warmModelCount ?? prev.warmModelCount ?? 0,
+            models: data.data?.models ?? prev.models ?? {}
+          }));
         }
         return data.data;
       }
@@ -80,13 +86,21 @@ const useModelWarmup = (options = {}) => {
     if (!modelName) return { success: false, error: 'Model name required' };
 
     try {
-      const response = await fetch('/api/ai-writing/warmup/model', {
+      // Start polling status immediately to catch the warming state
+      const statusPollingInterval = setInterval(() => {
+        getWarmupStatus();
+      }, 2000); // Poll every 2 seconds during warmup
+
+      const response = await fetch(`${API_BASE_URL}/api/ai-writing/warmup/model`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelName, priority })
       });
 
       const data = await response.json();
+
+      // Stop polling after warmup completes
+      clearInterval(statusPollingInterval);
 
       if (data.success && isComponentMountedRef.current) {
         // Add to warmup history
@@ -99,7 +113,7 @@ const useModelWarmup = (options = {}) => {
 
         setLastWarmupTime(new Date());
 
-        // Refresh status after successful warmup
+        // Final status check after warmup
         setTimeout(() => getWarmupStatus(), 500);
 
         return data.data;
@@ -119,13 +133,21 @@ const useModelWarmup = (options = {}) => {
     if (!enableSmartWarmup) return { success: false, reason: 'Smart warmup disabled' };
 
     try {
-      const response = await fetch('/api/ai-writing/warmup/smart', {
+      // Start polling status immediately to catch the warming state
+      const statusPollingInterval = setInterval(() => {
+        getWarmupStatus();
+      }, 2000); // Poll every 2 seconds during warmup
+
+      const response = await fetch(`${API_BASE_URL}/api/ai-writing/warmup/smart`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(context)
       });
 
       const data = await response.json();
+
+      // Stop polling after warmup completes
+      clearInterval(statusPollingInterval);
 
       if (data.success && isComponentMountedRef.current) {
         setLastWarmupTime(new Date());
@@ -143,8 +165,8 @@ const useModelWarmup = (options = {}) => {
           setWarmupHistory(prev => [...prev.slice(-9 + historyEntries.length), ...historyEntries]);
         }
 
-        // Refresh status after smart warmup
-        setTimeout(() => getWarmupStatus(), 1000);
+        // Final status check after warmup
+        setTimeout(() => getWarmupStatus(), 500);
 
         return data.data;
       }

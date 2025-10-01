@@ -1,20 +1,16 @@
+import { API_BASE_URL } from './api';
+
 /**
  * Upload Document Default Configuration
  *
- * This configuration defines the default settings for document uploads.
- * These settings should be configurable by admins in the future.
- *
- * Reasoning: Order is based on most frequently used document types
+ * This configuration is fetched from the backend API and cached.
+ * Admins can configure these settings through Admin Settings > Upload Defaults.
  */
 
-export const UPLOAD_DEFAULTS = {
-  // Default document type when upload modal opens
+// Fallback defaults in case API is unavailable
+const FALLBACK_DEFAULTS = {
   defaultDocumentType: 'solicitation',
-
-  // Default subfolder for all document types
   defaultSubfolder: 'Active',
-
-  // Document type display order (most likely to be used first)
   documentTypeOrder: [
     { value: 'solicitation', label: 'Solicitation' },
     { value: 'proposal', label: 'Proposal' },
@@ -23,35 +19,88 @@ export const UPLOAD_DEFAULTS = {
     { value: 'media', label: 'Media' },
     { value: 'compliance', label: 'Compliance' }
   ],
-
-  // Default subfolder order with Active always first
   subfolderOrder: [
-    'Active',
-    'Archive',
-    'Draft',
-    'Reference',
-    'Completed',
-    'In Progress',
-    'Review'
+    { value: 'Active', label: 'Active' },
+    { value: 'Archive', label: 'Archive' },
+    { value: 'Reference', label: 'Reference' },
+    { value: 'Templates', label: 'Templates' },
+    { value: 'Working', label: 'Working' },
+    { value: 'Final', label: 'Final' }
   ],
-
-  // Document classification defaults per type
   documentClassificationDefaults: {
-    solicitation: 'rfp', // Default to RFP for solicitations
+    solicitation: 'rfp',
     proposal: 'draft',
     past_performance: 'current',
     reference: 'general',
     media: 'public',
     compliance: 'active'
   },
-
-  // File upload settings
   fileSettings: {
     maxFileSize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
     allowedExtensions: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf'
   }
 };
+
+// In-memory cache of upload defaults
+let cachedDefaults = null;
+let cachePromise = null;
+
+/**
+ * Fetch upload defaults from backend API
+ * Uses in-memory cache to avoid repeated API calls
+ */
+export const fetchUploadDefaults = async () => {
+  // Return cached value if available
+  if (cachedDefaults) {
+    return cachedDefaults;
+  }
+
+  // Return existing promise if fetch is in progress
+  if (cachePromise) {
+    return cachePromise;
+  }
+
+  // Start new fetch
+  cachePromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/upload-defaults/config`);
+      const data = await response.json();
+
+      if (data.success) {
+        cachedDefaults = {
+          defaultDocumentType: data.data.defaultDocumentType,
+          defaultSubfolder: data.data.defaultSubfolder,
+          documentTypeOrder: data.data.documentTypeOrder,
+          subfolderOrder: data.data.subfolderOrder,
+          fileSettings: {
+            maxFileSize: (data.data.fileSettings?.maxFileSize || 50) * 1024 * 1024,
+            maxFiles: data.data.fileSettings?.maxFiles || 10,
+            allowedExtensions: (data.data.fileSettings?.allowedExtensions || []).join(',')
+          },
+          documentClassificationDefaults: FALLBACK_DEFAULTS.documentClassificationDefaults
+        };
+        return cachedDefaults;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch upload defaults, using fallback:', error);
+    }
+
+    // Use fallback if API fails
+    cachedDefaults = FALLBACK_DEFAULTS;
+    return cachedDefaults;
+  })();
+
+  return cachePromise;
+};
+
+// Initialize with fallback, will be replaced by API call
+export let UPLOAD_DEFAULTS = FALLBACK_DEFAULTS;
+
+// Fetch defaults on module load
+fetchUploadDefaults().then(defaults => {
+  UPLOAD_DEFAULTS = defaults;
+});
 
 /**
  * Get ordered document types for dropdown
@@ -70,7 +119,8 @@ export const getOrderedSubfolders = (availableSubfolders = []) => {
   const ordered = ['Active']; // Always start with Active
 
   // Add other subfolders from config order if they exist
-  UPLOAD_DEFAULTS.subfolderOrder.forEach(folder => {
+  UPLOAD_DEFAULTS.subfolderOrder.forEach(folderObj => {
+    const folder = typeof folderObj === 'string' ? folderObj : folderObj.value;
     if (folder !== 'Active' && availableSubfolders.includes(folder)) {
       ordered.push(folder);
     }

@@ -204,13 +204,19 @@ class AuthService {
             const baseUsername = email.split('@')[0]; // Extract username from email
             const uniqueId = require('uuid').v4().split('-')[0]; // Get first part of UUID for uniqueness
             const username = `${baseUsername}_${uniqueId}`; // Make username unique
-            const fullName = `Mock User (${baseUsername})`; // Set a descriptive full name
+
+            // Parse name from email or use email as fallback
+            const nameParts = baseUsername.split(/[._-]/);
+            const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User';
+            const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].slice(1) : '';
+            const fullName = lastName ? `${firstName} ${lastName}` : firstName;
+
             const newUser = await client.query(`
                 INSERT INTO users (oauth_provider, oauth_id, email, username, first_name, last_name, full_name,
                                  role_id, status, email_verified, approved_at, created_at)
                 VALUES ('mock', $1, $2, $3, $4, $5, $6, $7, 'active', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING id
-            `, [`mock-${require('uuid').v4()}`, email, username, 'Mock', 'User', fullName, roleId]);
+            `, [`mock-${require('uuid').v4()}`, email, username, firstName, lastName, fullName, roleId]);
 
             // Get the full user with role information
             const fullUser = await client.query(

@@ -1,5 +1,104 @@
 # Government Proposal AI - Changelog
 
+## Version 2.1.6 - Archived Projects & Project Card Fixes (2025-09-30 Late Evening)
+
+### 🐛 **Bug Fixes**
+
+#### Archived Projects Database Errors:
+- **Fixed SQL Query Issues**: Resolved three database errors preventing archived projects from loading
+  - **Error 1:** Column `p.owner_id` does not exist → Changed to `p.created_by`
+  - **Error 2:** Relation `project_team` does not exist → Changed to `project_team_members`
+  - **Error 3:** Column `u1.name` does not exist → Changed to `u1.full_name` and `u2.full_name`
+  - Backend: `ProjectService.js` `getArchivedProjects()` method (lines 315-330)
+  - Admin Settings → Archived Projects tab now loads correctly
+  - Documentation: `/docs/troubleshooting/2025-09-30-archived-projects-database-fixes.md`
+
+#### Project Card Button Alignment:
+- **Fixed Misaligned Action Buttons**: Cards with varying content heights now have aligned buttons
+  - Used flex layout with `flex: 1` content wrapper and `minHeight: 240px`
+  - Pushes Quick Actions buttons to bottom regardless of content length
+  - All project cards now have consistent button positioning
+  - Frontend: `ProjectCard.js` (lines 186-189, 425)
+
+### 🎨 **UI/UX Improvements**
+
+#### Model Warmup Polling Optimization:
+- **Reduced Console Logging**: Removed all debug console.log statements
+- **Optimized Polling**: Changed polling interval from 200ms to 2000ms during warmup
+  - Less chatty, better performance
+  - Still catches warmup status reliably
+  - Frontend: `useModelWarmup.js` and `AIWritingThreePanel.js`
+
+### 📝 **Files Modified**
+- `backend/src/services/ProjectService.js` - Fixed archived projects SQL query
+- `frontend/src/components/ProjectCard.js` - Added flex layout for button alignment
+- `frontend/src/hooks/useModelWarmup.js` - Removed logging, optimized polling
+- `frontend/src/components/AIWritingThreePanel.js` - Removed logging, fixed infinite loop
+
+### 📚 **Documentation**
+
+#### Archive Feature Documentation:
+- **Who Can Archive:** Only administrators (via `isAdmin` permission check)
+- **Where to Archive:** Main dashboard project cards, red 🗃️ Archive button
+- **Archive Flow:** Confirmation dialog → Optimistic UI update → API call
+- **View Archived:** Admin Settings → Archived Projects tab
+- **Backend Endpoint:** `POST /api/projects/:id/archive`
+- **Query Endpoint:** `GET /api/projects/archived?days=30&page=1&limit=20`
+
+### 🗄️ **Database Schema Verified**
+- `projects.created_by` (not `owner_id`) - Links to user who created project
+- `projects.archived_by` - Links to user who archived project
+- `projects.archived_at` - Timestamp when archived
+- `users.full_name` (not `name`) - Primary display name for users
+- `project_team_members` (not `project_team`) - Team membership table
+
+---
+
+## Version 2.1.5 - Upload Defaults & User Display (2025-09-30 Evening)
+
+### ✨ **New Features**
+
+#### Upload Defaults Dynamic Configuration:
+- **Admin-Configurable Upload Settings**: Full CRUD interface for upload modal defaults
+  - Database-backed configuration (`upload_defaults_config` table)
+  - Admin UI at Admin Settings → Upload Defaults tab
+  - Configure default document type (e.g., Solicitation, Proposal)
+  - Configure default subfolder (e.g., Active, Archive)
+  - Set max file size (1-500 MB)
+  - Set max files per upload (1-100 files)
+  - Frontend dynamically fetches configuration from API on load
+  - In-memory caching to avoid repeated API calls
+  - Fallback to hardcoded defaults if API unavailable
+  - Documentation: `/docs/troubleshooting/2025-09-30-upload-defaults-dynamic-configuration.md`
+
+### 🐛 **Bug Fixes**
+
+#### Mock User Display Name:
+- **Fixed "Mock User (admin)" Display**: User names now parsed from email addresses
+  - Changed from hardcoded "Mock User (admin)" to intelligent name parsing
+  - Email `john.doe@example.com` → Display name "John Doe"
+  - Updated 12 existing mock user records in database to "Admin User"
+  - Backend: `AuthService.js` `findOrCreateMockUser()` function
+  - Location: Lower left corner of left sidebar menu
+
+### 📝 **Files Created**
+- `frontend/src/components/UploadDefaultsConfig.js` - Admin UI component (360 lines)
+- `docs/troubleshooting/2025-09-30-upload-defaults-dynamic-configuration.md` - Full implementation guide
+
+### 📝 **Files Modified**
+- `frontend/src/components/AdminSettings.js` - Added Upload Defaults tab
+- `frontend/src/config/uploadDefaults.js` - Converted from static to dynamic API fetch
+- `backend/src/services/AuthService.js` - Fixed mock user name generation
+- Database: Created `upload_defaults_config` table with seed data
+
+### 🗄️ **Database Changes**
+- Created table: `upload_defaults_config`
+- Index: `idx_upload_defaults_updated_at`
+- Seed data: Default configuration matching previous hardcoded values
+- Updated: 12 mock user records with proper names
+
+---
+
 ## Version 2.1.4 - UI Polish & Feature Integration (2025-09-30 Afternoon)
 
 ### ✨ **Feature Integration**

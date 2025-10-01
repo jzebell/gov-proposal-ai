@@ -131,7 +131,9 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
 
   // Update health status when warmup status changes
   useEffect(() => {
-    checkAIHealth();
+    if (aiHealth) {
+      checkAIHealth();
+    }
   }, [isSystemWarming, warmModelCount]);
 
 
@@ -479,9 +481,7 @@ const AIWritingThreePanel = ({ theme, selectedProject, onAiHealthChange }) => {
           statusLabel: isSystemWarming ? 'Warming up models...' : data.data.available ? 'AI Online' : 'AI Offline'
         };
         setAiHealth(combinedHealth);
-        if (onAiHealthChange) {
-          onAiHealthChange(combinedHealth);
-        }
+        if (onAiHealthChange) onAiHealthChange(combinedHealth);
       }
     } catch (error) {
       // Error checking AI health - using offline status

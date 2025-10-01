@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../config/api';
 import DocumentTypeManagement from './DocumentTypeManagement';
 import ArchivedProjectsManagement from './ArchivedProjectsManagement';
 import GlobalPromptConfig from './GlobalPromptConfig';
+import UploadDefaultsConfig from './UploadDefaultsConfig';
 
 const AdminSettings = ({ theme }) => {
   const [documentTypes, setDocumentTypes] = useState({});
@@ -817,6 +818,21 @@ const AdminSettings = ({ theme }) => {
           📄 Document Types
         </button>
         <button
+          onClick={() => setActiveTab('uploadDefaults')}
+          style={{
+            padding: '12px 20px',
+            border: 'none',
+            backgroundColor: activeTab === 'uploadDefaults' ? theme.primary : 'transparent',
+            color: activeTab === 'uploadDefaults' ? 'white' : theme.text,
+            cursor: 'pointer',
+            borderRadius: '6px 6px 0 0',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}
+        >
+          📤 Upload Defaults
+        </button>
+        <button
           onClick={() => setActiveTab('globalSettings')}
           style={{
             padding: '12px 20px',
@@ -1314,6 +1330,11 @@ const AdminSettings = ({ theme }) => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Upload Defaults Tab */}
+      {activeTab === 'uploadDefaults' && !loading && (
+        <UploadDefaultsConfig theme={theme} />
       )}
 
       {/* Global Settings Tab */}
